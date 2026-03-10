@@ -1,0 +1,6 @@
+twelvelabs
+numpy
+scikit-learn
+fiftyone
+umap-learn
+huggingface_hub>=0.20.0
