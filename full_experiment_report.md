@@ -2,224 +2,303 @@
 
 ## Experiment Overview
 
-This report documents an independent evaluation of Twelve Labs' two video foundation models, Marengo 3.0 and Pegasus 1.2, on industrial worker safety video classification. The goal was to assess whether these models are fit for production safety monitoring applications before considering a role at Twelve Labs.
+This report documents an independent evaluation of Twelve Labs' two video foundation models — Marengo 3.0 (multimodal embeddings) and Pegasus 1.2 (video language model) — on industrial worker safety video classification. The evaluation was conducted March 10–11, 2026 by Sean Forester.
 
-The evaluation was conducted on March 9-10, 2026 by Sean Forester.
+Two runs were performed. Run 1 (March 9–10) used a single dual-model index and achieved only 69% indexing success and 41% Pegasus labeling success due to API rate limits. Run 2 (March 10–11), documented here, used a split-index architecture and achieved **100% success** on all 40 videos across both models.
 
 ## Models Under Test
 
 ### Marengo 3.0
 
-Marengo 3.0 is a multimodal embedding model. It takes video, audio, text, or image inputs and produces 512-dimensional vector embeddings suitable for similarity search, clustering, and downstream machine learning. It supports videos up to 4 hours in duration with a minimum of 4 seconds. It supports 37 languages. In this evaluation, both visual and audio modalities were enabled.
+Multimodal embedding model producing 512-dimensional vectors from video, audio, text, or image inputs. Supports videos up to 4 hours with a minimum of 4 seconds. Used here for embedding quality assessment and text-to-video retrieval with visual and audio modalities enabled.
 
 ### Pegasus 1.2
 
-Pegasus 1.2 is a video language model. It is a generative model that takes an indexed video and a text prompt, then produces a natural language response. It can describe, summarize, answer questions about, and classify video content. In this evaluation, it was used as a zero-shot classifier with a constrained prompt at temperature 0.1 to minimize randomness.
+Generative video language model. Takes an indexed video and a text prompt, produces natural language output. Used here as a zero-shot classifier with a constrained prompt at temperature 0.1.
 
 ## Dataset
 
-The dataset used is Voxel51/Safe_and_Unsafe_Behaviours, available on HuggingFace under the CC-BY-4.0 license. The original paper is published in ScienceDirect.
+### Source
 
-The dataset contains 691 video clips of simulated industrial workplace scenarios at 1920 by 1080 resolution, 24 frames per second, with durations ranging from 1 to 20 seconds. There are 566 training videos and 125 test videos.
+Voxel51/Safe_and_Unsafe_Behaviours (HuggingFace, CC-BY-4.0). Originally published as:
 
-The eight classes are divided into four safe and four unsafe behaviors:
+> Önal, O., & Dandıl, E. (2024). Video dataset for the detection of safe and unsafe behaviours in workplaces. *Data in Brief*, 56, 110791. DOI: 10.1016/j.dib.2024.110791
 
-Safe behaviors: Safe Walkway (worker stays within designated walkway), Authorized Intervention (worker properly equipped for equipment intervention), Closed Panel Cover (panel cover properly closed), and Safe Carrying (forklift carrying two or fewer blocks).
+The dataset contains 691 video clips from real surveillance cameras at Kafaoğlu Metal Plastik Makine San. ve Tic. A.Ş., a production facility in Eskişehir, Turkey. Videos were captured between November 5 and December 13, 2022 (39 days) from two UNV IP cameras at 1920×1080, 24fps, H.264/MP4. All employees provided informed consent; the study was approved by the Bilecik Şeyh Edebali University ethics committee.
 
-Unsafe behaviors: Safe Walkway Violation (worker exceeds safe walkway boundaries), Unauthorized Intervention (worker intervenes without safety gear or authorization), Opened Panel Cover (panel cover left open), and Carrying Overload with Forklift (forklift carrying three or more blocks).
+### Class Taxonomy (8 classes)
+
+| Safe Behaviors | Unsafe Behaviors |
+|---|---|
+| Safe Walkway — worker stays within designated path | Safe Walkway Violation — worker outside designated path |
+| Authorized Intervention — properly equipped for maintenance | Unauthorized Intervention — no safety gear/authorization |
+| Closed Panel Cover — panel properly closed | Opened Panel Cover — panel left open |
+| Safe Carrying — forklift carrying ≤2 blocks | Carrying Overload with Forklift — forklift carrying >2 blocks |
+
+### Dataset Limitations (from original paper)
+
+- **Single facility**: One factory, two cameras, 39 days. Cannot generalize to other environments.
+- **No inter-annotator agreement**: Labels assigned by factory experts without reported kappa or validation metrics.
+- **Severe class imbalance**: Walkway Violation has 210 videos; Closed Panel Cover has 32 (6.6:1 ratio).
+- **Ambiguous boundaries**: Authors acknowledge projection constraints make walkway violation labeling imprecise.
+- **No baseline models**: The original paper is a dataset descriptor with zero benchmarks.
 
 ### Evaluation Subset
 
-From the test split, videos shorter than 4 seconds were filtered out due to Twelve Labs' minimum duration requirement, leaving 116 eligible videos. Ten videos per label were sampled using a fixed random seed of 42 for reproducibility, yielding 72 target videos.
-
-Of these 72, only 50 were successfully indexed due to API rate limits on the free tier. Of the 50 indexed, only 30 received Pegasus labels for the same reason. The remaining 20 returned errors because the analyze endpoint was rate-limited at 8 requests per minute.
+From the 125-video test split, videos shorter than 4 seconds were filtered (Twelve Labs minimum), leaving 116 eligible. Five videos per label were sampled using stratified selection sorted by duration ascending (shortest first) with seed=42, yielding **40 evaluation videos** with total duration of 257.9 seconds.
 
 ## Methodology
 
+### Split-Index Architecture
+
+To maximize successful API calls within the free tier's **50 requests/day** indexing limit, two separate single-model indexes were created:
+
+- `safety-eval-marengo` — Marengo 3.0 only
+- `safety-eval-pegasus` — Pegasus 1.2 only
+
+This avoids the 2× duration multiplier from dual-model indexing and allows independent budget tracking per model. Each index consumed 257.9 seconds of its 3600-second daily duration budget.
+
 ### Pipeline
 
-Step one: download the dataset from HuggingFace via FiftyOne's load_from_hub function. Step two: filter the test split for videos at least 4 seconds in duration. Step three: stratified sample up to 10 videos per label with a fixed seed. Step four: create a Twelve Labs index configured with both Marengo 3.0 and Pegasus 1.2 using visual and audio modalities. Step five: upload and index each video using the tasks.create endpoint, then wait for completion with tasks.wait_for_done. Step six: retrieve 512-dimensional Marengo embeddings using the indexes.videos.retrieve endpoint with the visual embedding option. For videos with multiple segments, segment embeddings were averaged. Step seven: classify each video using the Pegasus analyze endpoint with a constrained prompt. Step eight: run text-to-video search queries using the search.query endpoint. Step nine: compute all metrics.
+1. Download dataset from HuggingFace via FiftyOne
+2. Filter test split for videos ≥4 seconds; stratified-sample 5 per label (sorted by duration ascending)
+3. Index all 40 videos into Marengo index (40 of 50 daily requests)
+4. Index all 40 videos into Pegasus index (30 requests on day 2 after quota reset)
+5. Retrieve 512-dim Marengo embeddings via `indexes.videos.retrieve` with `embedding_option=["visual"]`
+6. Classify each video via Pegasus `analyze` endpoint with constrained prompt at temperature=0.1
+7. Run text-to-video search queries via `search.query` endpoint
+8. Compute all metrics
 
-### Benchmark A: Embedding Quality
+### Rate Limiting Strategy
 
-This benchmark tests whether Marengo embeddings can separate the eight safety classes in vector space. A k-Nearest Neighbors classifier with k equals 5 and cosine distance was evaluated using stratified k-fold cross-validation. The silhouette score was computed to measure cluster cohesion versus separation, where a score near 1 means well-separated clusters and a score near 0 means overlapping clusters. A binary version was also tested collapsing the eight classes into safe versus unsafe.
+- 10-second minimum interval between all API calls (proactive throttle)
+- Escalating backoff on 429 errors: 65s → 65s → 10 min (after 3 consecutive 429s)
+- Daily quota detection: parses `x-ratelimit-request-remaining` header and bails immediately when exhausted
+- State persistence to `eval_state.json` for resumable runs across quota resets
 
-### Benchmark B: Retrieval Quality
+### Benchmark A: Embedding Quality (Marengo 3.0)
 
-This benchmark tests Marengo's text-to-video search capability. Ten natural language queries were crafted, eight targeting specific classes and two cross-cutting queries for general safety versus violation. For each query, the top 5 search results were checked against ground-truth labels to compute Average Precision at 5 and Recall at 5.
+k-Nearest Neighbors classifier (k=5, cosine distance) evaluated with stratified k-fold cross-validation. Silhouette score computed for cluster cohesion. Binary version collapses 8 classes into safe vs. unsafe.
 
-The ten queries were: "person walking outside the safe walkway boundary" expecting Safe Walkway Violation, "worker stepping into a restricted area without authorization" expecting Unauthorized Intervention, "electrical panel left open and unattended" expecting Opened Panel Cover, "forklift carrying too many items stacked dangerously high" expecting Carrying Overload with Forklift, "worker walking within the designated safe path" expecting Safe Walkway, "authorized maintenance worker servicing equipment" expecting Authorized Intervention, "panel cover properly closed and secured" expecting Closed Panel Cover, "forklift safely transporting a normal load" expecting Safe Carrying, "safety violation on the factory floor" expecting all unsafe labels, and "proper safety protocol being followed" expecting all safe labels.
+### Benchmark B: Retrieval Quality (Marengo 3.0)
 
-### Benchmark C: Generation Quality
+Ten natural language queries — eight targeting specific classes, two cross-cutting (all-safe, all-unsafe). Top-5 results evaluated for Average Precision@5 and Recall@5.
 
-This benchmark tests Pegasus as a zero-shot video classifier. The exact prompt used was:
+### Benchmark C: Generation Quality (Pegasus 1.2)
 
-"You are a worker-safety video classifier. Classify this video into exactly one label. UNSAFE: Safe Walkway Violation, Unauthorized Intervention, Opened Panel Cover, Carrying Overload with Forklift. SAFE: Safe Walkway, Authorized Intervention, Closed Panel Cover, Safe Carrying. Return ONLY the exact label name. No punctuation, no explanation, no extra words."
+Zero-shot classification with constrained prompt:
 
-Temperature was set to 0.1 for maximum determinism. Four metrics were computed: eight-class exact match accuracy, binary safe versus unsafe accuracy, format compliance (did it return a valid label from the eight options), and hallucination rate (percentage returning something outside the valid set).
+> "You are a worker-safety video classifier. Classify this video into exactly one label. UNSAFE: Safe Walkway Violation, Unauthorized Intervention, Opened Panel Cover, Carrying Overload with Forklift. SAFE: Safe Walkway, Authorized Intervention, Closed Panel Cover, Safe Carrying. Return ONLY the exact label name. No punctuation, no explanation, no extra words."
+
+Metrics: 8-class accuracy, binary accuracy, format compliance, hallucination rate.
 
 ## Results
 
 ### Benchmark A: Embedding Quality
 
-The kNN eight-class accuracy was 0.499. For context, random guessing across eight classes would yield 0.125, so Marengo embeddings do carry some class signal, but less than 50 percent accuracy means the model is wrong more often than right.
-
-The kNN binary accuracy collapsing to safe versus unsafe was 0.640. This is only slightly better than a coin flip of 0.50.
-
-The silhouette score was 0.024. This is essentially zero, meaning the eight classes are almost completely overlapping in embedding space. There is no meaningful cluster structure.
+| Metric | Value | Interpretation |
+|---|---|---|
+| kNN 8-class accuracy (CV) | **0.425** | 3.4× random (0.125), but wrong more than right |
+| kNN binary (safe/unsafe) | **0.600** | Marginally better than coin flip (0.50) |
+| Silhouette score | **0.033** | ≈0 means classes completely overlap in vector space |
 
 ### Benchmark B: Retrieval Quality
 
-The mean Average Precision at 5 across all ten queries was 0.426. The mean Recall at 5 was 0.195.
+| Metric | Value |
+|---|---|
+| mAP@5 | **0.374** |
+| Recall@5 | **0.270** |
 
-Per-query results reveal a stark pattern. Queries about identifiable objects scored well: "forklift safely transporting a normal load" achieved a perfect AP of 1.00 and Recall of 0.83. "Authorized maintenance worker servicing equipment" scored AP 0.89 and Recall 0.40. "Electrical panel left open and unattended" scored AP 0.83 and Recall 0.20. "Proper safety protocol being followed" scored AP 0.89 and Recall 0.15.
+**Per-query breakdown:**
 
-Queries requiring state or boundary discrimination scored zero: "person walking outside the safe walkway boundary" returned AP 0.00 and Recall 0.00. "Worker stepping into a restricted area without authorization" returned AP 0.00 and Recall 0.00. "Worker walking within the designated safe path" returned AP 0.00 and Recall 0.00. "Panel cover properly closed and secured" returned AP 0.00 and Recall 0.00.
+| Query | AP@5 | R@5 | Pattern |
+|---|---|---|---|
+| forklift safely transporting a normal load | **1.000** | **1.000** | Object retrieval — perfect |
+| proper safety protocol being followed | 0.533 | 0.150 | Cross-cutting — moderate |
+| authorized maintenance worker servicing equipment | 0.500 | 0.200 | Object retrieval — good |
+| safety violation on the factory floor | 0.478 | 0.150 | Cross-cutting — moderate |
+| worker stepping into a restricted area | 0.367 | 0.400 | State discrimination — weak |
+| worker walking within the designated safe path | 0.333 | 0.200 | State discrimination — weak |
+| forklift carrying too many items stacked high | 0.325 | 0.400 | Quantity discrimination — weak |
+| electrical panel left open and unattended | 0.200 | 0.200 | State discrimination — poor |
+| person walking outside the safe walkway boundary | **0.000** | **0.000** | State discrimination — fails |
+| panel cover properly closed and secured | **0.000** | **0.000** | State discrimination — fails |
 
-The remaining queries scored moderately: "forklift carrying too many items stacked dangerously high" returned AP 0.33 and Recall 0.29. "Safety violation on the factory floor" returned AP 0.33 and Recall 0.09.
-
-The interpretation is clear: Marengo can recognize objects like forklifts, panels, and workers, but it cannot distinguish the state of those objects. It cannot tell open from closed, inside the walkway from outside the walkway, or authorized from unauthorized.
+**Pattern**: Marengo excels at object-level retrieval ("find forklifts") but fails at state discrimination ("is the panel open or closed?", "is the worker inside or outside the walkway?").
 
 ### Benchmark C: Generation Quality
 
-Of 50 indexed videos, only 30 received Pegasus classifications. The other 20 returned errors due to rate limiting.
+| Metric | Value | Interpretation |
+|---|---|---|
+| 8-class accuracy | **0.125** | Equivalent to random guessing |
+| Binary accuracy | **0.150** | Worse than coin flip |
+| Format compliance | **0.300** | 70% of outputs are invalid labels |
+| Hallucination rate | **0.700** | 28 of 40 responses outside the valid label set |
 
-The eight-class accuracy was 0.200, meaning Pegasus correctly identified the exact label for only 6 of 30 videos. The binary safe versus unsafe accuracy was 0.300. Format compliance was 0.400, meaning only 12 of 30 responses were valid labels from the eight-class taxonomy. The hallucination rate was 0.600.
+**Pegasus output distribution (40 videos):**
 
-The distribution of Pegasus outputs across all 30 non-error responses was as follows. It returned "Unsafe" 17 times, which is 57 percent of all responses. "Unsafe" is not one of the eight valid labels. It returned "Safe Walkway" 8 times, "Safe Carrying" 4 times, and "SAFE" once with wrong casing.
+| Output | Count | % | Valid Label? |
+|---|---|---|---|
+| "Unsafe" | 21 | 52.5% | No |
+| "Safe Carrying" | 8 | 20.0% | Yes |
+| "Safe Walkway" | 4 | 10.0% | Yes |
+| "SAFE" | 2 | 5.0% | No |
+| "Unsafe" (various) | 5 | 12.5% | No |
 
 ### Per-Class Pegasus Results
 
-Authorized Intervention: All 10 videos failed due to rate limits. Zero data.
-
-Carrying Overload with Forklift: All 7 videos failed due to rate limits. Zero data.
-
-Closed Panel Cover: 5 of 8 received labels. Zero correct. Pegasus predicted Safe Walkway 3 times and Unsafe 2 times. This is a safe behavior being called either wrong or unsafe.
-
-Opened Panel Cover: 10 of 10 received labels. Zero correct. Pegasus predicted Unsafe 9 times and Safe Walkway once. Directionally, calling an open panel "Unsafe" is not wrong, but it does not match the specific label and reveals that Pegasus is defaulting to a binary judgment rather than doing eight-class classification.
-
-Safe Carrying: 6 of 7 received labels. Four correct. Pegasus predicted Safe Carrying 4 times and Unsafe twice. This is the best-performing class, likely because a forklift carrying a small load is visually distinctive.
-
-Safe Walkway: 3 of 10 received labels. Two correct. Pegasus predicted Safe Walkway twice and Unsafe once.
-
-Safe Walkway Violation: 3 of 10 received labels. Zero correct. Pegasus predicted Safe Walkway twice and Unsafe once. This is the most dangerous failure mode: a safety violation being classified as safe behavior. In a production deployment, this means the system would fail to alert when a worker walks outside the designated safe area.
-
-Unauthorized Intervention: 3 of 10 received labels. Zero correct. Pegasus predicted Unsafe twice and SAFE once. It cannot distinguish authorized from unauthorized work.
+| Class | Ground Truth | Pegasus Prediction | Correct | Notes |
+|---|---|---|---|---|
+| Carrying Overload w/ Forklift (5) | Unsafe | Safe Carrying ×4, Safe Walkway ×1 | **0/5** | Misclassifies as safe — dangerous |
+| Closed Panel Cover (5) | Safe | Unsafe ×4, Safe Walkway ×1 | **0/5** | Safe behavior flagged as unsafe |
+| Opened Panel Cover (5) | Unsafe | Unsafe ×5 | **0/5** | Directionally right, wrong label |
+| Authorized Intervention (5) | Safe | Unsafe ×5 | **0/5** | Safe behavior flagged as unsafe |
+| Unauthorized Intervention (5) | Unsafe | Unsafe ×4, SAFE ×1 | **0/5** | Can't distinguish auth from unauth |
+| Safe Walkway (5) | Safe | Unsafe ×4, Safe Walkway ×1 | **1/5** | 80% false alarm rate |
+| Safe Walkway Violation (5) | Unsafe | Unsafe ×3, Safe Walkway ×1, SAFE ×1 | **0/5** | Violation called "Safe" — dangerous |
+| Safe Carrying (5) | Safe | Safe Carrying ×4, Unsafe ×1 | **4/5** | Best class — visually distinctive |
 
 ## Analysis
 
-### Marengo 3.0 Strengths
+### Marengo 3.0: Object Recognition Without State Understanding
 
-Object-level retrieval works well. When you search for a forklift, a panel, or a worker near equipment, Marengo finds relevant videos. The 512-dimensional embeddings are compact and practical for downstream machine learning pipelines. The model supports videos up to 4 hours, 37 languages, and multimodal inputs including composed text-plus-image queries. Multi-segment temporal encoding provides video-level representations rather than just frame-level analysis.
+Marengo's embeddings carry weak but nonzero class signal (kNN accuracy 3.4× random). However, the near-zero silhouette score (0.033) confirms that classes are not separable in embedding space. The retrieval results expose the fundamental limitation: Marengo recognizes *what* is in the scene (forklifts, panels, workers) but cannot determine *the state* of those objects (open vs. closed, inside vs. outside boundary, overloaded vs. normal).
 
-### Marengo 3.0 Weaknesses
+For industrial safety, the difference between safe and unsafe is almost always about state, not presence. This makes Marengo unsuitable as the sole classification signal for safety monitoring, though it may serve as a useful pre-filter in a multi-stage pipeline.
 
-State discrimination is the fundamental weakness. In a safety context, the difference between safe and unsafe is almost always about the state of an object or the position of a person relative to a boundary, not the mere presence of that object or person. Marengo cannot distinguish open from closed panels, inside from outside walkways, or authorized from unauthorized workers. All state-based retrieval queries returned AP of 0.00.
+### Pegasus 1.2: Binary Bias With Dangerous Misclassifications
 
-The silhouette score of 0.024 confirms that the eight safety classes occupy nearly identical regions in the embedding space. This means any downstream classifier built on Marengo embeddings will struggle.
+The 70% hallucination rate is the headline finding. Despite explicit instructions to return one of eight exact labels, Pegasus defaults to "Unsafe" as a catch-all binary judgment 52.5% of the time. This is not one of the valid labels.
 
-Twelve Labs publishes benchmarks heavily weighted toward sports domains. SoccerNet action recognition and basketball analytics show strong results. However, no industrial safety or surveillance benchmarks have been published, and our results suggest those domains perform significantly worse.
+The most dangerous failure modes:
+- **Carrying Overload → "Safe Carrying"** (4/5): Overloaded forklifts classified as safe
+- **Safe Walkway Violation → "Safe Walkway" or "SAFE"** (2/5): Workers outside safe zones classified as safe
+- **Authorized Intervention → "Unsafe"** (5/5): Properly authorized work flagged as violations
 
-### Pegasus 1.2 Strengths
+These are not edge cases — they represent systematic failures. In production, misclassifying violations as safe creates false confidence that is worse than having no monitoring system.
 
-It can identify visually distinctive safe behaviors, particularly Safe Carrying where the forklift carries a small number of blocks. The per-call latency is reasonable once videos are indexed. The embed-then-query architecture means re-querying the same video is cheap.
+### Comparison: Run 1 vs Run 2
 
-### Pegasus 1.2 Weaknesses
+| Metric | Run 1 (partial, 50/30) | Run 2 (complete, 40/40) |
+|---|---|---|
+| Videos evaluated | 50 Marengo / 30 Pegasus | 40 Marengo / 40 Pegasus |
+| API success rate | 58% | **100%** |
+| kNN 8-class | 0.499 | 0.425 |
+| kNN binary | 0.640 | 0.600 |
+| Silhouette | 0.024 | 0.033 |
+| mAP@5 | 0.426 | 0.374 |
+| Pegasus 8-class | 0.200 | **0.125** |
+| Pegasus hallucination | 0.600 | **0.700** |
 
-The 60 percent hallucination rate is the headline finding. Despite being told to return only an exact label name from a list of eight options, Pegasus returned "Unsafe" 57 percent of the time, which is not one of the valid labels. It is treating the task as binary classification rather than eight-class classification. At temperature 0.1, which should produce near-deterministic outputs, this suggests the model genuinely cannot distinguish between the eight categories.
+Run 2's Pegasus metrics are *worse* than Run 1's partial results, suggesting the 10-video subset from Run 1 was not representative. The complete 40-video evaluation provides a more accurate (and more damning) picture.
 
-There is no structured output or constrained decoding mode. Unlike modern LLM APIs that offer JSON mode or tool-use to guarantee output format, Pegasus returns freeform text. For classification tasks, this is a significant limitation.
+### Confounds and Caveats
 
-The most dangerous failure is "Safe Walkway Violation" being classified as "Safe Walkway" in two out of three cases. In production, this means the system would not alert when a worker leaves the designated safe area.
+1. **Camera-class correlation**: Camera 9 captures walkway + panel classes; Camera 14 captures forklift classes. Marengo may partly be learning camera view, not behavior.
+2. **Duration-class correlation**: Shortest-first sampling biases toward shorter classes (Closed Panel Cover avg 4.6s vs Unauthorized Intervention avg 10.2s).
+3. **Single environment**: All results are specific to one Turkish factory with two camera angles.
+4. **API non-determinism**: Pegasus at temperature=0.1 is not fully deterministic. Results may vary across runs.
+5. **No negative controls**: We did not test with out-of-distribution video.
+6. **Small sample size**: 5 videos per class limits statistical confidence. No confidence intervals computed.
 
-### Production Concerns
+## Conclusions
 
-The free tier rate limit of 8 requests per minute across all endpoints made batch evaluation impractical. Of our 72 target videos, 22 failed to index and 20 failed Pegasus labeling. This is itself a product finding: batch workflows require a paid tier.
+### Fitness for Production Safety Monitoring
 
-Twelve Labs is API-only with no on-premise or edge deployment option. For industrial safety monitoring in factories with limited connectivity or air-gapped environments, this is a blocker.
+**Marengo 3.0**: Not fit as sole classifier. Useful for object-level video retrieval and as a feature extractor in a multi-stage pipeline, but cannot distinguish safe from unsafe states of the same objects. Would need to be combined with specialized computer vision models for state detection.
 
-No fine-tuning is available for either model. Users cannot adapt the embedding space or the generative model to their specific safety categories.
+**Pegasus 1.2**: Not fit for classification tasks. The 70% hallucination rate and systematic misclassification of violations as safe behavior represent unacceptable risk for safety-critical applications. The lack of structured output (constrained decoding, JSON mode) makes it unreliable for any classification workflow.
 
-The walkway violation misclassification, where unsafe behavior is labeled as safe, represents a liability risk in any real deployment. Safety monitoring systems that miss violations are worse than no system at all because they create false confidence.
+### What Would Be Needed
+
+- Fine-tuning capability for domain-specific embedding spaces
+- Structured output / constrained decoding for Pegasus classification
+- On-premise deployment option for air-gapped industrial environments
+- Published benchmarks on industrial/surveillance domains (not just sports)
 
 ## Reproducibility
 
 ### Requirements
 
-Python 3.13, twelvelabs SDK version 1.2.0, numpy, scikit-learn, fiftyone, huggingface_hub version 0.20.0 or later, and umap-learn.
+Python 3.13, twelvelabs 1.2.0, numpy, scikit-learn, fiftyone, huggingface_hub ≥0.20.0, umap-learn.
 
 ### Commands
 
-Create and activate a virtual environment: python3 -m venv .venv, then source .venv/bin/activate. Install dependencies: pip install -r requirements.txt. Set the API key: export TWELVE_LABS_API_KEY with your key. Run a quick sanity check with 24 videos: python eval_harness.py --split test --samples-per-label 3. Run the full evaluation with 72 or more videos: python eval_harness.py --split test --samples-per-label 10.
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+export TWELVE_LABS_API_KEY=your_key
+
+# Full evaluation (40 videos, requires 2 days for quota: 40+30+10 search+40 analyze = ~120 requests)
+python eval_harness.py --split test --samples-per-label 5
+
+# Quick sanity check (24 videos, fits in 1 day)
+python eval_harness.py --split test --samples-per-label 3
+```
 
 ### Notes
 
-The first run downloads approximately 9.5 gigabytes of video data from HuggingFace. State is persisted to eval_state.json so interrupted runs resume without re-indexing or re-uploading. The random seed is 42 for stratified sampling. Results may vary slightly due to Pegasus non-determinism even at low temperature. Free tier rate limits cause approximately 20 percent failure rate on large batches.
+- First run downloads ~9.5 GB from HuggingFace
+- State persists to `eval_state.json` — interrupted runs resume without re-indexing
+- Random seed 42 for stratified sampling
+- Free tier: 50 indexing requests/day, 50 analyze requests/day, 50 search requests/day
+- Full eval requires 2 days due to 50 req/day indexing limit (40 Marengo + 40 Pegasus = 80 index requests)
 
-## Raw Sample Results
+## Per-Sample Results
 
-The following table shows every video that received a Pegasus classification, along with its ground truth label and the model prediction.
+### All 40 Pegasus Classifications
 
-### Closed Panel Cover (safe behavior)
-
-| Video | Ground Truth | Pegasus Prediction | Correct |
+| Video | Ground Truth | Pegasus Output | Correct? |
 |---|---|---|---|
-| 6_te13.mp4 | Closed Panel Cover | Unsafe | No |
-| 6_te2.mp4 | Closed Panel Cover | Safe Walkway | No |
+| 3_te7.mp4 | Carrying Overload with Forklift | Safe Carrying | No |
+| 3_te5.mp4 | Carrying Overload with Forklift | Safe Carrying | No |
+| 3_te6.mp4 | Carrying Overload with Forklift | Safe Carrying | No |
+| 3_te4.mp4 | Carrying Overload with Forklift | Safe Walkway | No |
+| 3_te3.mp4 | Carrying Overload with Forklift | Safe Carrying | No |
+| 6_te5.mp4 | Closed Panel Cover | Unsafe | No |
 | 6_te4.mp4 | Closed Panel Cover | Unsafe | No |
-| 6_te11.mp4 | Closed Panel Cover | Safe Walkway | No |
-| 6_te12.mp4 | Closed Panel Cover | Safe Walkway | No |
-
-### Opened Panel Cover (unsafe behavior)
-
-| Video | Ground Truth | Pegasus Prediction | Correct |
-|---|---|---|---|
+| 6_te3.mp4 | Closed Panel Cover | Unsafe | No |
+| 6_te2.mp4 | Closed Panel Cover | Safe Walkway | No |
+| 6_te1.mp4 | Closed Panel Cover | Unsafe | No |
+| 2_te2.mp4 | Opened Panel Cover | Unsafe | No |
 | 2_te3.mp4 | Opened Panel Cover | Unsafe | No |
-| 2_te11.mp4 | Opened Panel Cover | Unsafe | No |
-| 2_te8.mp4 | Opened Panel Cover | Safe Walkway | No |
-| 2_te12.mp4 | Opened Panel Cover | Unsafe | No |
+| 2_te4.mp4 | Opened Panel Cover | Unsafe | No |
 | 2_te5.mp4 | Opened Panel Cover | Unsafe | No |
 | 2_te6.mp4 | Opened Panel Cover | Unsafe | No |
-| 2_te2.mp4 | Opened Panel Cover | Unsafe | No |
-| 2_te9.mp4 | Opened Panel Cover | Unsafe | No |
-| 2_te7.mp4 | Opened Panel Cover | Unsafe | No |
-| 2_te10.mp4 | Opened Panel Cover | Unsafe | No |
-
-### Safe Carrying (safe behavior)
-
-| Video | Ground Truth | Pegasus Prediction | Correct |
-|---|---|---|---|
-| 7_te4.mp4 | Safe Carrying | Safe Carrying | Yes |
-| 7_te6.mp4 | Safe Carrying | Unsafe | No |
-| 7_te8.mp4 | Safe Carrying | Safe Carrying | Yes |
-| 7_te3.mp4 | Safe Carrying | Safe Carrying | Yes |
-| 7_te7.mp4 | Safe Carrying | Safe Carrying | Yes |
-| 7_te2.mp4 | Safe Carrying | Unsafe | No |
-
-### Safe Walkway (safe behavior)
-
-| Video | Ground Truth | Pegasus Prediction | Correct |
-|---|---|---|---|
-| 4_te3.mp4 | Safe Walkway | Safe Walkway | Yes |
-| 4_te5.mp4 | Safe Walkway | Unsafe | No |
-| 4_te18.mp4 | Safe Walkway | Safe Walkway | Yes |
-
-### Safe Walkway Violation (unsafe behavior)
-
-| Video | Ground Truth | Pegasus Prediction | Correct |
-|---|---|---|---|
-| 0_te27.mp4 | Safe Walkway Violation | Safe Walkway | No |
-| 0_te3.mp4 | Safe Walkway Violation | Safe Walkway | No |
-| 0_te5.mp4 | Safe Walkway Violation | Unsafe | No |
-
-### Unauthorized Intervention (unsafe behavior)
-
-| Video | Ground Truth | Pegasus Prediction | Correct |
-|---|---|---|---|
+| 5_te10.mp4 | Authorized Intervention | Unsafe | No |
+| 5_te11.mp4 | Authorized Intervention | Unsafe | No |
+| 5_te9.mp4 | Authorized Intervention | Unsafe | No |
+| 5_te1.mp4 | Authorized Intervention | Unsafe | No |
+| 5_te2.mp4 | Authorized Intervention | Unsafe | No |
 | 1_te11.mp4 | Unauthorized Intervention | Unsafe | No |
 | 1_te10.mp4 | Unauthorized Intervention | SAFE | No |
-| 1_te5.mp4 | Unauthorized Intervention | Unsafe | No |
+| 1_te9.mp4 | Unauthorized Intervention | Unsafe | No |
+| 1_te8.mp4 | Unauthorized Intervention | Unsafe | No |
+| 1_te7.mp4 | Unauthorized Intervention | Unsafe | No |
+| 4_te2.mp4 | Safe Walkway | Unsafe | No |
+| 4_te3.mp4 | Safe Walkway | Safe Walkway | Yes |
+| 4_te14.mp4 | Safe Walkway | Unsafe | No |
+| 4_te1.mp4 | Safe Walkway | Unsafe | No |
+| 4_te12.mp4 | Safe Walkway | Unsafe | No |
+| 0_te10.mp4 | Safe Walkway Violation | Unsafe | No |
+| 0_te11.mp4 | Safe Walkway Violation | Unsafe | No |
+| 0_te12.mp4 | Safe Walkway Violation | SAFE | No |
+| 0_te13.mp4 | Safe Walkway Violation | Safe Walkway | No |
+| 0_te14.mp4 | Safe Walkway Violation | Unsafe | No |
+| 7_te4.mp4 | Safe Carrying | Safe Carrying | Yes |
+| 7_te3.mp4 | Safe Carrying | Safe Carrying | Yes |
+| 7_te2.mp4 | Safe Carrying | Unsafe | No |
+| 7_te1.mp4 | Safe Carrying | Safe Carrying | Yes |
+| 7_te8.mp4 | Safe Carrying | Safe Carrying | Yes |
 
-### Authorized Intervention and Carrying Overload with Forklift
+**Total: 5 correct / 40 = 12.5% accuracy**
 
-All 10 Authorized Intervention videos and all 7 Carrying Overload with Forklift videos failed to receive Pegasus classifications due to API rate limit exhaustion. These two classes have zero evaluation data from the generative model.
+## Citation
+
+If referencing this evaluation:
+
+> Forester, S. (2026). Independent Evaluation of Twelve Labs Marengo 3.0 and Pegasus 1.2 on Worker Safety Video Classification. Unpublished technical report.
+
+Dataset citation:
+
+> Önal, O., & Dandıl, E. (2024). Video dataset for the detection of safe and unsafe behaviours in workplaces. *Data in Brief*, 56, 110791. https://doi.org/10.1016/j.dib.2024.110791

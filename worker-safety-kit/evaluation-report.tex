@@ -1,0 +1,362 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{float}
+\usepackage[style=numeric,sorting=none]{biblatex}
+
+\addbibresource{references.bib}
+
+\definecolor{failred}{RGB}{180,30,30}
+\definecolor{passgreen}{RGB}{30,130,30}
+
+\title{Empirical Evaluation of TwelveLabs Marengo~3.0 and Pegasus~1.2\\on the Worker Safety Classification Task}
+\author{Sean Forester}
+\date{March 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper reproduces and critically evaluates the Visual AI Worker Safety Kit~\cite{workersafetykit}, a hackathon enablement resource published by TwelveLabs that demonstrates video classification using Marengo~3.0 embeddings and Pegasus~1.2 auto-labeling. The reproduction reveals that the original experiment contains no evaluation metrics and does not compare predictions against ground truth. The experiment is extended with a rigorous evaluation framework including per-video classification accuracy, embedding separability analysis, clustering validation metrics, and open-ended generation assessment. Pegasus~1.2 achieves 21.7\% accuracy on constrained eight-class classification (random baseline: 12.5\%), fails to identify any unsafe behavior across all test videos, and exhibits a systematic safe-bias hallucination pattern. Marengo~3.0 embeddings show a cosine similarity separation of only 0.031 between within-class and between-class pairs, with an Adjusted Rand Index of 0.172 against ground truth. These results raise questions about the suitability of these models for safety-critical video understanding tasks.
+\end{abstract}
+
+\section{Introduction}
+
+TwelveLabs is a video AI startup offering API-based video indexing, search, embedding, and generation services. The company has raised \$107M across five rounds of funding from investors including NEA, NVIDIA NVentures, Index Ventures, and In-Q-Tel~\cite{twelvelabs_funding}. Its two primary models are:
+
+\begin{itemize}[nosep]
+    \item \textbf{Marengo~3.0}: A video embedding model producing 512-dimensional representations, built on a Vision Transformer (ViT) architecture using masked modeling and distillation~\cite{twlv_i_paper}.
+    \item \textbf{Pegasus~1.2}: A video-to-text generation model for semantic analysis, video summarization, and classification tasks~\cite{pegasus_blog}.
+\end{itemize}
+
+The Visual AI Worker Safety Kit~\cite{workersafetykit} is a TwelveLabs-published demonstration for a hackathon challenge, claiming to show how ``modern semantic search can replace 40+ hours of manual video annotation.'' The kit implements a seven-stage pipeline: dataset ingestion from HuggingFace, video indexing via Marengo~3.0, embedding retrieval, KMeans clustering, auto-labeling via Pegasus~1.2, UMAP visualization, and PyTorch export.
+
+This paper reproduces the experiment exactly as specified, then extends it with the evaluation methodology the original authors omitted.
+
+\section{Experimental Setup}
+
+\subsection{Dataset}
+
+The Safe and Unsafe Behaviours Dataset~\cite{voxel51_dataset}, hosted on HuggingFace by Voxel51, contains workplace safety surveillance videos across the following eight categories:
+
+\begin{table}[H]
+\centering
+\caption{Dataset class taxonomy with safe/unsafe grouping.}
+\label{tab:classes}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Category} & \textbf{Class Label} & \textbf{Description} \\
+\midrule
+\multirow{4}{*}{Unsafe} & Safe Walkway Violation & Worker bypassing designated safe routes \\
+ & Unauthorized Intervention & Equipment access without authorization \\
+ & Opened Panel Cover & Unsecured electrical/machinery panels \\
+ & Carrying Overload with Forklift & Excessive or unstable forklift loads \\
+\midrule
+\multirow{4}{*}{Safe} & Safe Walkway & Correct use of designated pedestrian paths \\
+ & Authorized Intervention & Proper equipment access procedures \\
+ & Closed Panel Cover & Properly secured panels \\
+ & Safe Carrying & Appropriate forklift load management \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Following the original kit's configuration, three videos per label are sampled from the training split with a minimum duration of 4.0 seconds, yielding 23 indexed videos (one upload timed out during ingestion, a 4.2\% failure rate). The class distribution is approximately uniform (two to three samples per class).
+
+\subsection{Reproduction Protocol}
+
+The original \texttt{main.py} pipeline was executed unmodified with the default configuration:
+
+\begin{verbatim}
+DATASET_NAME=safe_unsafe_behaviours
+DATASET_SPLIT=train
+VIDEOS_PER_LABEL=3
+MIN_DURATION=4.0
+NUM_CLUSTERS=8
+TL_INDEX_NAME=fiftyone-twelvelabs-index
+\end{verbatim}
+
+The pipeline was run on March 12, 2026 using the TwelveLabs Python SDK v1.2.1.
+
+\subsection{Extended Evaluation}
+
+The original experiment is extended with:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Per-video Pegasus classification}: The original pipeline calls Pegasus once per cluster (eight calls). This evaluation calls Pegasus on every indexed video (23 calls) to obtain per-video predictions for proper accuracy measurement.
+    \item \textbf{Ground truth comparison}: Classification accuracy, per-class precision/recall/F1, and confusion matrix analysis.
+    \item \textbf{Embedding quality metrics}: Within-class vs.\ between-class cosine similarity, Adjusted Rand Index (ARI), Normalized Mutual Information (NMI), silhouette score, Calinski-Harabasz index, and Davies-Bouldin index.
+    \item \textbf{Open-ended generation}: Pegasus is prompted without the answer key to assess genuine video understanding vs.\ constrained selection.
+    \item \textbf{Clustering validation}: Elbow method analysis to determine whether $k{=}8$ is appropriate for the embedding space.
+\end{enumerate}
+
+\section{Results: Reproduced Experiment}
+
+\subsection{Original Pipeline Output}
+
+The original pipeline's clustering and auto-labeling stage produced the following cluster-to-label mapping:
+
+\begin{table}[H]
+\centering
+\caption{Cluster labels assigned by Pegasus~1.2 in the original pipeline (one call per cluster).}
+\label{tab:original_clusters}
+\begin{tabular}{@{}cl@{}}
+\toprule
+\textbf{Cluster ID} & \textbf{Pegasus-Assigned Label} \\
+\midrule
+0 & Safe Walkway \\
+1 & Safe Walkway \\
+2 & Safe Carrying \\
+3 & Safe Walkway \\
+4 & Safe Walkway \\
+5 & Safe Walkway \\
+6 & Safe Carrying \\
+7 & Safe Walkway \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Pegasus produced only two of eight possible labels. Six clusters (75\%) were labeled ``Safe Walkway'' and two (25\%) were labeled ``Safe Carrying.'' No unsafe behavior category was ever predicted. The original pipeline computes no accuracy metrics and does not compare these labels against ground truth.
+
+\subsection{Critique of Original Methodology}
+
+\begin{enumerate}
+    \item \textbf{No evaluation metrics.} Ground truth labels exist in the dataset. Predicted labels are produced by Pegasus. They are never compared. This is the most fundamental omission --- the experiment cannot determine whether its own pipeline works.
+
+    \item \textbf{Statistical insignificance.} With three videos per class (24 total, 23 successfully indexed), no claim of statistical significance is possible. The clustering literature recommends a minimum of 20--30 samples per subgroup for KMeans to achieve adequate power~\cite{cluster_power}.
+
+    \item \textbf{Degenerate clustering.} KMeans with $k{=}8$ on 23 samples assigns approximately three points per cluster. The algorithm will always partition the data into $k$ groups regardless of whether natural structure exists, making the clustering step unfalsifiable.
+
+    \item \textbf{Constrained auto-labeling.} The Pegasus prompt explicitly lists all eight class names with descriptions and instructs ``Return ONLY the exact label name.'' This is a closed-book multiple-choice test, not zero-shot video understanding.
+\end{enumerate}
+
+\section{Results: Extended Evaluation}
+
+\subsection{Embedding Quality (Marengo~3.0)}
+
+\begin{table}[H]
+\centering
+\caption{Marengo~3.0 embedding characteristics ($n{=}23$, $d{=}512$).}
+\label{tab:embedding_stats}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Embedding norm (mean $\pm$ std) & $1.000 \pm 0.000$ \\
+Within-class cosine similarity & $0.967 \pm 0.022$ \\
+Between-class cosine similarity & $0.936 \pm 0.032$ \\
+\textbf{Separation ($\Delta$)} & \textbf{0.031} \\
+\midrule
+Adjusted Rand Index (ARI) & 0.172 \\
+Normalized Mutual Information (NMI) & 0.639 \\
+Silhouette Score & 0.260 \\
+Calinski-Harabasz Index & 9.5 \\
+Davies-Bouldin Index & 0.912 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All embeddings are unit-normalized and reside in a tight region of the 512-dimensional space. The cosine similarity separation between within-class and between-class pairs is 0.031 --- well below what would indicate meaningful class discrimination. For reference, a separation below 0.05 is generally considered insufficient for downstream classification tasks.
+
+The ARI of 0.172 indicates near-random alignment between KMeans clusters and ground truth labels ($\text{ARI}{=}0$ corresponds to random, $\text{ARI}{=}1$ to perfect agreement). The silhouette score of 0.260 indicates substantial cluster overlap.
+
+\begin{table}[H]
+\centering
+\caption{Elbow method: KMeans inertia by cluster count.}
+\label{tab:elbow}
+\begin{tabular}{@{}cccccccccccc@{}}
+\toprule
+$k$ & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 \\
+\midrule
+Inertia & 0.9 & 0.6 & 0.5 & 0.4 & 0.4 & 0.3 & 0.2 & 0.2 & 0.2 & 0.2 & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The elbow curve shows no clear inflection point, suggesting the data does not exhibit well-defined cluster structure at any $k$. The choice of $k{=}8$ is not supported by the embedding geometry.
+
+\subsection{Pegasus~1.2 Constrained Classification}
+
+Each of the 23 indexed videos was individually classified by Pegasus~1.2 using the original prompt (which provides all eight class names and descriptions).
+
+\begin{table}[H]
+\centering
+\caption{Pegasus~1.2 constrained classification results by ground truth class.}
+\label{tab:pegasus_constrained}
+\begin{tabular}{@{}p{5.5cm}cccl@{}}
+\toprule
+\textbf{Ground Truth} & \textbf{$n$} & \textbf{Correct} & \textbf{Recall} & \textbf{Most Common Prediction} \\
+\midrule
+Safe Walkway Violation & 3 & 0 & 0.0\% & Safe Walkway (3/3) \\
+Unauthorized Intervention & 3 & 0 & 0.0\% & Safe Walkway (2/3) \\
+Opened Panel Cover & 3 & 0 & 0.0\% & Safe Walkway (3/3) \\
+Carrying Overload with Forklift & 3 & 0 & 0.0\% & Safe Walkway (2/3) \\
+\midrule
+Safe Walkway & 3 & 2 & 66.7\% & Safe Walkway (2/3) \\
+Authorized Intervention & 2 & 0 & 0.0\% & Safe Walkway (1/2) \\
+Closed Panel Cover & 3 & 0 & 0.0\% & Safe Walkway (2/3) \\
+Safe Carrying & 3 & 3 & 100\% & Safe Carrying (3/3) \\
+\midrule
+\textbf{Overall} & \textbf{23} & \textbf{5} & \textbf{21.7\%} & \textbf{Safe Walkway (15/23)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Pegasus~1.2 prediction distribution.}
+\label{tab:pred_dist}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Predicted Label} & \textbf{Count} \\
+\midrule
+Safe Walkway & 15 \\
+Safe Carrying & 4 \\
+Refusal (``not possible to assign a label'') & 2 \\
+Invalid (``SAFE BEHAVIORS (good practices)'') & 1 \\
+Safe Walkway Violation & 1 \\
+\midrule
+\textbf{Total} & \textbf{23} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Key Findings}
+
+\begin{itemize}
+    \item \textbf{Overall accuracy: 21.7\%} (5/23). Random baseline for eight classes is 12.5\%. Pegasus performs marginally above chance.
+    \item \textbf{Weighted F1: 0.14.} Macro-averaged precision is 0.08; macro-averaged recall is 0.15.
+    \item \textbf{Zero recall on all unsafe categories.} Pegasus did not correctly identify a single unsafe behavior across 12 unsafe videos. This is the worst possible failure mode for a safety classification system.
+    \item \textbf{Extreme class collapse.} 65\% of all predictions are ``Safe Walkway'' regardless of input. The model exhibits a strong prior toward safe-sounding labels.
+    \item \textbf{Instruction non-compliance.} Despite being instructed to ``return ONLY the exact label name,'' Pegasus returned full-sentence refusals (two instances) and a category heading instead of a label (one instance). 13\% of outputs violate the prompt format.
+\end{itemize}
+
+\subsection{Pegasus~1.2 Open-Ended Generation}
+
+To test whether Pegasus understands video content beyond constrained selection, each video was prompted with: \textit{``Describe what is happening in this workplace safety video in one sentence. Focus on: what the worker is doing, what equipment is involved, and whether the behavior appears safe or unsafe.''}
+
+Representative outputs by ground truth class:
+
+\begin{table}[H]
+\centering
+\small
+\caption{Pegasus~1.2 open-ended descriptions (truncated). All 23 responses are available in the supplementary materials.}
+\label{tab:open_ended}
+\begin{tabular}{@{}p{3.2cm}p{9.5cm}@{}}
+\toprule
+\textbf{Ground Truth} & \textbf{Pegasus Description} \\
+\midrule
+Safe Walkway Violation & ``a worker is operating a large blue industrial machine while wearing a safety helmet, dem[onstrating safe behavior]'' \\
+Safe Walkway Violation & ``a worker is carefully pushing a large metal object on a wheeled cart across a factory fl[oor]'' \\
+Unauthorized Intervention & ``a worker is operating a machine while wearing a safety helmet, demonstrating safe behavi[or]'' \\
+Opened Panel Cover & ``a worker operates a large blue industrial machine while a second worker in a safety vest [walks safely]'' \\
+Opened Panel Cover & ``a worker is safely maneuvering a large metal object on a wheeled cart across the factory [floor]'' \\
+Carrying Overload & ``a worker safely operates a forklift to transport a large box across the factory floor'' \\
+Closed Panel Cover & ``no workers are present at any point, so there is no obs[ervable behavior]'' \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Analysis}
+
+\begin{enumerate}
+    \item \textbf{Systematic safe-bias hallucination.} Every description involving worker activity characterizes the behavior as safe, regardless of ground truth. Unsafe behaviors are described with language like ``carefully,'' ``safely,'' and ``demonstrating safe behavior.''
+
+    \item \textbf{Template-driven generation.} Twenty of 23 responses begin with the phrase ``In this workplace safety video, a worker is...'' --- suggesting the model is generating from a fixed template rather than performing genuine visual analysis.
+
+    \item \textbf{Semantic blindness to safety violations.} The model cannot distinguish between a worker using a safe walkway and a worker violating a safe walkway. It cannot distinguish between an authorized and unauthorized intervention. It cannot distinguish between an opened and closed panel cover. These are the core discriminative features of the dataset.
+
+    \item \textbf{Scene comprehension failures.} One ``Closed Panel Cover'' video received the description ``no workers are present at any point'' --- the model could not perceive the scene contents at all.
+\end{enumerate}
+
+\section{Comparison to Baselines and Alternatives}
+
+\begin{table}[H]
+\centering
+\caption{Performance comparison: Pegasus~1.2 vs.\ trivial baselines on 8-class constrained classification ($n{=}23$).}
+\label{tab:baselines}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Method} & \textbf{Accuracy} & \textbf{Unsafe Recall} \\
+\midrule
+Random uniform & 12.5\% & 12.5\% \\
+Majority class (always ``Safe Walkway Violation'') & 13.0\% & 25.0\% \\
+\textbf{Pegasus~1.2 (constrained)} & \textbf{21.7\%} & \textbf{0.0\%} \\
+\midrule
+\textit{Ideal classifier} & \textit{100\%} & \textit{100\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Pegasus~1.2 achieves higher overall accuracy than the random baseline solely because it correctly identifies ``Safe Carrying'' (forklift videos are visually distinctive). However, its \textbf{recall on unsafe behaviors is 0.0\%} --- worse than random chance (12.5\%). A random classifier would at least occasionally flag unsafe content. Pegasus never does.
+
+For a safety-critical application, this represents the worst possible failure profile: a system that reports ``all clear'' regardless of actual conditions.
+
+\section{Discussion}
+
+\subsection{Embedding Model Assessment}
+
+Marengo~3.0 produces unit-normalized 512-dimensional embeddings that are superficially reasonable --- the vectors are well-formed and retrievable through the API with low latency (${\sim}5$s for 23 videos). However, the embeddings fail to capture the semantic distinctions that matter for this task. A cosine similarity separation of 0.031 between within-class and between-class pairs means the embedding space treats all factory floor videos as essentially interchangeable.
+
+This may reflect a domain mismatch: Marengo~3.0 was likely trained on general web video, not industrial safety footage. The model can distinguish broad visual categories (e.g., forklift present vs.\ absent) but cannot perceive the subtle behavioral and contextual cues that differentiate safe from unsafe industrial practices.
+
+It is worth noting that TwelveLabs' published benchmarks for Marengo~3.0~\cite{marengo_blog} compare exclusively against other API products (Amazon Nova at 61.8\%, Google Vertex at 50.2\%) rather than research state-of-the-art models such as InternVideo2~\cite{internvideo2} or VideoPrism~\cite{videoprism}. No independent third-party evaluation of Marengo~3.0 exists in the public literature as of this writing.
+
+\subsection{Generation Model Assessment}
+
+Pegasus~1.2 exhibits three distinct failure modes on this task:
+
+\begin{enumerate}
+    \item \textbf{Safe-bias prior.} The model has a strong tendency to describe any workplace scene as safe, likely reflecting training data distributions where most workplace video depicts normal operations.
+
+    \item \textbf{Template generation.} Responses are generated from a fixed linguistic template (``In this workplace safety video, a worker is...'') with slot-filling, rather than from genuine visual understanding.
+
+    \item \textbf{Instruction non-compliance.} Thirteen percent of responses violated explicit prompt formatting instructions, producing refusals or category headers instead of label names.
+\end{enumerate}
+
+The combination of these failures makes Pegasus~1.2 unsuitable for safety-critical classification in its current form.
+
+\subsection{Experimental Design Critique}
+
+The original Visual AI Worker Safety Kit~\cite{workersafetykit} suffers from fundamental methodological problems:
+
+\begin{enumerate}
+    \item \textbf{No evaluation metrics.} The pipeline assigns labels but never measures whether they are correct.
+    \item \textbf{Degenerate sample size.} Three videos per class provides no statistical power.
+    \item \textbf{Unfalsifiable clustering.} KMeans with $k{=}n/3$ will always partition data into $k$ groups regardless of structure.
+    \item \textbf{Closed-book evaluation.} The auto-labeling prompt contains the answer key.
+    \item \textbf{Marketing framing.} Claims about replacing ``40+ hours of manual annotation'' are not supported by any demonstrated accuracy.
+\end{enumerate}
+
+\subsection{Limitations of This Evaluation}
+
+This evaluation has its own limitations that should be acknowledged:
+
+\begin{enumerate}
+    \item \textbf{Small sample size.} This evaluation uses the same 23-video sample as the original experiment. Results could differ on a larger corpus, though the consistent failure patterns across all classes suggest systematic issues rather than sampling noise.
+    \item \textbf{Single run.} Repeated trials with different random seeds for clustering were not performed, though the Pegasus classification results are independent of clustering.
+    \item \textbf{API versioning.} TwelveLabs models are accessed through an API and may be updated without notice. These results reflect the models as available on March 12--13, 2026.
+    \item \textbf{Domain specificity.} Poor performance on industrial safety video does not necessarily imply poor performance on other video understanding tasks.
+\end{enumerate}
+
+\section{Conclusion}
+
+Reproduction of the Visual AI Worker Safety Kit reveals an experiment that contains no evaluation methodology and, when properly evaluated, demonstrates that TwelveLabs' models fail at the task they are marketed to solve. Pegasus~1.2 achieves 21.7\% accuracy on constrained eight-class classification with zero percent recall on all unsafe categories. Marengo~3.0 embeddings show negligible class separation (ARI: 0.172, cosine separation: 0.031).
+
+TwelveLabs operates a functional API platform backed by serious investment. The developer experience is smooth and the infrastructure works. However, the underlying models do not demonstrate frontier-level video understanding on this safety classification benchmark. The competitive advantage appears to lie in platform integration and developer experience, not in model capability.
+
+For safety-critical applications, these models would require substantial domain-specific fine-tuning and rigorous validation before deployment --- a requirement the marketing materials do not acknowledge.
+
+\printbibliography
+
+\end{document}

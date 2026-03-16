@@ -1,547 +1,407 @@
 {
   "config": {
     "split": "test",
-    "samples_per_label": 10,
-    "total_videos": 72,
-    "indexed": 50,
+    "samples_per_label": 5,
+    "total_videos": 40,
+    "marengo_indexed": 40,
+    "pegasus_indexed": 40,
+    "marengo_duration_s": 257.9,
+    "pegasus_duration_s": 257.9,
+    "total_index_usage_s": 515.8,
     "dataset": "Voxel51/Safe_and_Unsafe_Behaviours"
   },
   "samples": [
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te8.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aeed53ce39c95b65a2db04",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te12.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aeed5f8f08a017ae2c2bfb",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te6.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aeed77510778b193440661",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te4.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aefabe9de3b3727f5b91f4",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te7.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aefad5d84f43a8317a6ac7",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te11.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aefae799f2a22a8397edd2",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te3.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aefaf54b0eaac56bbace77",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te10.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aefb06d0a756159a400830",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te9.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aefb16214c10a3f194525c",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/5_te5.mp4",
-      "ground_truth": "Authorized Intervention",
-      "video_id": "69aefb2afdcbaa6d4f88bb08",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/3_te5.mp4",
+      "filepath": "3_te7.mp4",
       "ground_truth": "Carrying Overload with Forklift",
-      "video_id": "69aeed8a43d6cfe50e584d99",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/3_te7.mp4",
-      "ground_truth": "Carrying Overload with Forklift",
-      "video_id": "69aeed9aa28f0a9590ce18cf",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/3_te2.mp4",
-      "ground_truth": "Carrying Overload with Forklift",
-      "video_id": "69aeedb177f2562f814c1c26",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/3_te4.mp4",
-      "ground_truth": "Carrying Overload with Forklift",
-      "video_id": "69aefb3b510778b193440fc6",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/3_te6.mp4",
-      "ground_truth": "Carrying Overload with Forklift",
-      "video_id": "69aefb48510778b193440fd2",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/3_te1.mp4",
-      "ground_truth": "Carrying Overload with Forklift",
-      "video_id": "69aefb5ca987af0a6b0183dc",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/3_te3.mp4",
-      "ground_truth": "Carrying Overload with Forklift",
-      "video_id": "69aefb6e99f2a22a8397ee2c",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te3.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aeedbda1052b068859c2e9",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te5.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aeedc8251874bee9e91c62",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te1.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aeedd3d0a756159a3ffff6",
-      "pegasus_label": "ERROR",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te13.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aefb7f214c10a3f1945299",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te2.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aefb8f43d6cfe50e5856d6",
-      "pegasus_label": "Safe Walkway",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te4.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aefb9ace39c95b65a2e3f4",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te11.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aefba5214c10a3f19452b0",
-      "pegasus_label": "Safe Walkway",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/6_te12.mp4",
-      "ground_truth": "Closed Panel Cover",
-      "video_id": "69aefbaf510778b19344101b",
-      "pegasus_label": "Safe Walkway",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te3.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aeeddf43d6cfe50e584dc9",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te11.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aeedf0ce39c95b65a2db77",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te8.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aeee0254c4ccd7272ef52d",
-      "pegasus_label": "Safe Walkway",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te12.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aefbb9fdcbaa6d4f88bb73",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te5.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aefbce251874bee9e925a9",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te6.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aefbdfa987af0a6b018420",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te2.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aefbeb510778b193441044",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te9.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aefbfdd0a756159a4008d5",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te7.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aefc0d251874bee9e925c7",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/2_te10.mp4",
-      "ground_truth": "Opened Panel Cover",
-      "video_id": "69aefc1fce39c95b65a2e44f",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/7_te4.mp4",
-      "ground_truth": "Safe Carrying",
-      "video_id": "69aeee0c77f2562f814c1c58",
+      "duration": 4.0,
+      "marengo_video_id": "69b0a1dd43440728bfa14cf5",
+      "pegasus_video_id": "69b0a5163f06b7c529b98ef7",
       "pegasus_label": "Safe Carrying",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/7_te6.mp4",
-      "ground_truth": "Safe Carrying",
-      "video_id": "69aeee17251874bee9e91c8b",
+      "filepath": "6_te5.mp4",
+      "ground_truth": "Closed Panel Cover",
+      "duration": 4.0,
+      "marengo_video_id": "69b0a1eb43440728bfa14d01",
+      "pegasus_video_id": "69b0a524ef03bb3a2e6fff45",
       "pegasus_label": "Unsafe",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/7_te8.mp4",
+      "filepath": "6_te4.mp4",
+      "ground_truth": "Closed Panel Cover",
+      "duration": 4.001601,
+      "marengo_video_id": "69b0a1f6fdcbaa6d4f899b15",
+      "pegasus_video_id": "69b0a52ffdcbaa6d4f899d22",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "7_te4.mp4",
       "ground_truth": "Safe Carrying",
-      "video_id": "69aeee2377f2562f814c1c93",
+      "duration": 4.008984,
+      "marengo_video_id": "69b0a1ff6fa4fcbeecb7b0fc",
+      "pegasus_video_id": "69b0a53ad0a756159a40e9c5",
       "pegasus_label": "Safe Carrying",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/7_te3.mp4",
+      "filepath": "6_te3.mp4",
+      "ground_truth": "Closed Panel Cover",
+      "duration": 4.012841,
+      "marengo_video_id": "69b0a20b31b32f53223800aa",
+      "pegasus_video_id": "69b0a5453f06b7c529b98f12",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "7_te3.mp4",
       "ground_truth": "Safe Carrying",
-      "video_id": "69aefc2a214c10a3f1945300",
+      "duration": 4.039259,
+      "marengo_video_id": "69b0a214ef03bb3a2e6ffd4f",
+      "pegasus_video_id": "69b0a54cd0a756159a40e9d1",
       "pegasus_label": "Safe Carrying",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/7_te7.mp4",
-      "ground_truth": "Safe Carrying",
-      "video_id": "69aefc3599f2a22a8397eeb1",
+      "filepath": "4_te2.mp4",
+      "ground_truth": "Safe Walkway",
+      "duration": 4.17503,
+      "marengo_video_id": "69b0a21e4a8d804fb621def2",
+      "pegasus_video_id": "69b0a55b4a8d804fb621e12e",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "4_te3.mp4",
+      "ground_truth": "Safe Walkway",
+      "duration": 4.17503,
+      "marengo_video_id": "69b0a22b4a8d804fb621def9",
+      "pegasus_video_id": "69b0a568fdcbaa6d4f899d4c",
+      "pegasus_label": "Safe Walkway",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "5_te10.mp4",
+      "ground_truth": "Authorized Intervention",
+      "duration": 4.96994,
+      "marengo_video_id": "69b0a23dfdcbaa6d4f899b3b",
+      "pegasus_video_id": "69b0a57c3f06b7c529b98f37",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "2_te2.mp4",
+      "ground_truth": "Opened Panel Cover",
+      "duration": 4.984051,
+      "marengo_video_id": "69b0a2534a8d804fb621df16",
+      "pegasus_video_id": "69b0a58d3f06b7c529b98f46",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "2_te3.mp4",
+      "ground_truth": "Opened Panel Cover",
+      "duration": 4.996003,
+      "marengo_video_id": "69b0a262d0a756159a40e7de",
+      "pegasus_video_id": "69b2034dd0a756159a413854",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "3_te5.mp4",
+      "ground_truth": "Carrying Overload with Forklift",
+      "duration": 5.0,
+      "marengo_video_id": "69b0a27b3f06b7c529b98d42",
+      "pegasus_video_id": "69b2035cfa56ed1950ac3699",
       "pegasus_label": "Safe Carrying",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/7_te2.mp4",
+      "filepath": "3_te6.mp4",
+      "ground_truth": "Carrying Overload with Forklift",
+      "duration": 5.0,
+      "marengo_video_id": "69b0a2923f06b7c529b98d50",
+      "pegasus_video_id": "69b2036afdcbaa6d4f89eace",
+      "pegasus_label": "Safe Carrying",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "5_te11.mp4",
+      "ground_truth": "Authorized Intervention",
+      "duration": 5.01002,
+      "marengo_video_id": "69b0a2a731b32f5322380113",
+      "pegasus_video_id": "69b20376ec7de3c2886190c0",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "5_te9.mp4",
+      "ground_truth": "Authorized Intervention",
+      "duration": 5.01002,
+      "marengo_video_id": "69b0a2b53f06b7c529b98d6b",
+      "pegasus_video_id": "69b2038223a367ca8af45e4a",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "2_te4.mp4",
+      "ground_truth": "Opened Panel Cover",
+      "duration": 5.035971,
+      "marengo_video_id": "69b0a2dbfa56ed1950abe819",
+      "pegasus_video_id": "69b2038e452f8a24cf0f2e32",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "6_te2.mp4",
+      "ground_truth": "Closed Panel Cover",
+      "duration": 5.184571,
+      "marengo_video_id": "69b0a2ecc56bfd02fe98680b",
+      "pegasus_video_id": "69b2039dec7de3c2886190c4",
+      "pegasus_label": "Safe Walkway",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "6_te1.mp4",
+      "ground_truth": "Closed Panel Cover",
+      "duration": 5.216693,
+      "marengo_video_id": "69b0a2f9fdcbaa6d4f899bdc",
+      "pegasus_video_id": "69b203a9ec7de3c2886190c7",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "2_te5.mp4",
+      "ground_truth": "Opened Panel Cover",
+      "duration": 5.988024,
+      "marengo_video_id": "69b0a30ed0a756159a40e87b",
+      "pegasus_video_id": "69b203b63f06b7c529b9dd43",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "3_te4.mp4",
+      "ground_truth": "Carrying Overload with Forklift",
+      "duration": 6.0,
+      "marengo_video_id": "69b0a32fd0a756159a40e891",
+      "pegasus_video_id": "69b203c4ec7de3c2886190ca",
+      "pegasus_label": "Safe Walkway",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "4_te14.mp4",
+      "ground_truth": "Safe Walkway",
+      "duration": 6.000805,
+      "marengo_video_id": "69b0a33e3f06b7c529b98de3",
+      "pegasus_video_id": "69b203d019fb79c85999ae2f",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "7_te2.mp4",
       "ground_truth": "Safe Carrying",
-      "video_id": "69aefc4099f2a22a8397eebb",
+      "duration": 6.072656,
+      "marengo_video_id": "69b0a349c56bfd02fe98684b",
+      "pegasus_video_id": "69b203daddeb14de2a174a58",
       "pegasus_label": "Unsafe",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/7_te1.mp4",
+      "filepath": "4_te1.mp4",
+      "ground_truth": "Safe Walkway",
+      "duration": 6.92,
+      "marengo_video_id": "69b0a360b2c9b764e7869e5f",
+      "pegasus_video_id": "69b203ee3f06b7c529b9dd47",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "2_te6.mp4",
+      "ground_truth": "Opened Panel Cover",
+      "duration": 6.942215,
+      "marengo_video_id": "69b0a36f43440728bfa14e2c",
+      "pegasus_video_id": "69b203fd23a367ca8af45e56",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "5_te1.mp4",
+      "ground_truth": "Authorized Intervention",
+      "duration": 6.946108,
+      "marengo_video_id": "69b0a382fdcbaa6d4f899c2a",
+      "pegasus_video_id": "69b2040dfa56ed1950ac370b",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "0_te10.mp4",
+      "ground_truth": "Safe Walkway Violation",
+      "duration": 6.975806,
+      "marengo_video_id": "69b0a3a4fa56ed1950abe8a2",
+      "pegasus_video_id": "69b2041bfdcbaa6d4f89ead5",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "0_te11.mp4",
+      "ground_truth": "Safe Walkway Violation",
+      "duration": 6.975806,
+      "marengo_video_id": "69b0a3bc3f06b7c529b98e33",
+      "pegasus_video_id": "69b2042a19fb79c85999ae34",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "3_te3.mp4",
+      "ground_truth": "Carrying Overload with Forklift",
+      "duration": 7.0,
+      "marengo_video_id": "69b0a3cd43440728bfa14e64",
+      "pegasus_video_id": "69b2044023a367ca8af45e59",
+      "pegasus_label": "Safe Carrying",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "4_te12.mp4",
+      "ground_truth": "Safe Walkway",
+      "duration": 7.007652,
+      "marengo_video_id": "69b0a3e631b32f53223801fe",
+      "pegasus_video_id": "69b2044eec7de3c2886190d1",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "7_te1.mp4",
       "ground_truth": "Safe Carrying",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te3.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": "69aeee3029ccffc9462af7b7",
-      "pegasus_label": "Safe Walkway",
+      "duration": 7.118984,
+      "marengo_video_id": "69b0a3f63f06b7c529b98e52",
+      "pegasus_video_id": "69b20459fa56ed1950ac3739",
+      "pegasus_label": "Safe Carrying",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te5.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": "69aeee3ace39c95b65a2db9e",
+      "filepath": "5_te2.mp4",
+      "ground_truth": "Authorized Intervention",
+      "duration": 7.821229,
+      "marengo_video_id": "69b0a40dfdcbaa6d4f899c66",
+      "pegasus_video_id": "69b20467fdcbaa6d4f89eadd",
       "pegasus_label": "Unsafe",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te18.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": "69aeee4e0ec5362fc41350c1",
-      "pegasus_label": "Safe Walkway",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te9.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te7.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te23.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te20.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te12.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te17.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/4_te19.mp4",
-      "ground_truth": "Safe Walkway",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te27.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": "69aeee6677f2562f814c1cab",
-      "pegasus_label": "Safe Walkway",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te3.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": "69aeee83251874bee9e91cb5",
-      "pegasus_label": "Safe Walkway",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te5.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": "69aeee9fd84f43a8317a6290",
-      "pegasus_label": "Unsafe",
-      "embedding_dim": 512
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te28.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te29.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te19.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te14.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te31.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te11.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/0_te6.mp4",
-      "ground_truth": "Safe Walkway Violation",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te11.mp4",
+      "filepath": "1_te11.mp4",
       "ground_truth": "Unauthorized Intervention",
-      "video_id": "69aeeeb14b0eaac56bbac5a5",
+      "duration": 7.946753,
+      "marengo_video_id": "69b0a4273f06b7c529b98e6b",
+      "pegasus_video_id": "69b20476ec7de3c2886190d5",
       "pegasus_label": "Unsafe",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te10.mp4",
-      "ground_truth": "Unauthorized Intervention",
-      "video_id": "69aeeec50ec5362fc4135108",
+      "filepath": "0_te12.mp4",
+      "ground_truth": "Safe Walkway Violation",
+      "duration": 7.974225,
+      "marengo_video_id": "69b0a4473f06b7c529b98e7a",
+      "pegasus_video_id": "69b20484fdcbaa6d4f89eae1",
       "pegasus_label": "SAFE",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te5.mp4",
-      "ground_truth": "Unauthorized Intervention",
-      "video_id": "69aeeeddd0a756159a400090",
+      "filepath": "0_te13.mp4",
+      "ground_truth": "Safe Walkway Violation",
+      "duration": 7.974225,
+      "marengo_video_id": "69b0a4623f06b7c529b98e8d",
+      "pegasus_video_id": "69b2049323a367ca8af45e5f",
+      "pegasus_label": "Safe Walkway",
+      "embedding_dim": 512
+    },
+    {
+      "filepath": "0_te14.mp4",
+      "ground_truth": "Safe Walkway Violation",
+      "duration": 7.974225,
+      "marengo_video_id": "69b0a47e4a8d804fb621e09e",
+      "pegasus_video_id": "69b204a7c56bfd02fe98b78d",
       "pegasus_label": "Unsafe",
       "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te2.mp4",
-      "ground_truth": "Unauthorized Intervention",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
+      "filepath": "7_te8.mp4",
+      "ground_truth": "Safe Carrying",
+      "duration": 10.147187,
+      "marengo_video_id": "69b0a48d4a8d804fb621e0a7",
+      "pegasus_video_id": "69b204b223a367ca8af45e62",
+      "pegasus_label": "Safe Carrying",
+      "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te4.mp4",
+      "filepath": "1_te10.mp4",
       "ground_truth": "Unauthorized Intervention",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
+      "duration": 10.980073,
+      "marengo_video_id": "69b0a4a76fa4fcbeecb7b2c6",
+      "pegasus_video_id": "69b204c6fdcbaa6d4f89eae4",
+      "pegasus_label": "SAFE",
+      "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te7.mp4",
+      "filepath": "1_te9.mp4",
       "ground_truth": "Unauthorized Intervention",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
+      "duration": 11.02074,
+      "marengo_video_id": "69b0a4bf6fa4fcbeecb7b2db",
+      "pegasus_video_id": "69b204d7fa56ed1950ac3744",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te1.mp4",
+      "filepath": "1_te8.mp4",
       "ground_truth": "Unauthorized Intervention",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
+      "duration": 11.279394,
+      "marengo_video_id": "69b0a4e5c56bfd02fe986935",
+      "pegasus_video_id": "69b204f0452f8a24cf0f2e3c",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
     },
     {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te9.mp4",
+      "filepath": "1_te7.mp4",
       "ground_truth": "Unauthorized Intervention",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te3.mp4",
-      "ground_truth": "Unauthorized Intervention",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
-    },
-    {
-      "filepath": "/Users/sean_forester_home_folder/fiftyone/huggingface/hub/Voxel51/Safe_and_Unsafe_Behaviours/data/1_te8.mp4",
-      "ground_truth": "Unauthorized Intervention",
-      "video_id": null,
-      "pegasus_label": null,
-      "embedding_dim": 0
+      "duration": 12.001611,
+      "marengo_video_id": "69b0a5064a8d804fb621e0f8",
+      "pegasus_video_id": "69b20503fdcbaa6d4f89eae7",
+      "pegasus_label": "Unsafe",
+      "embedding_dim": 512
     }
   ],
   "metrics": {
-    "embedding_knn_accuracy": 0.4987745098039216,
-    "embedding_binary_accuracy": 0.64,
-    "embedding_silhouette": 0.024136246428569885,
-    "retrieval_map_at_5": 0.4258333333333334,
-    "retrieval_recall_at_5": 0.19541522889348978,
+    "embedding_knn_accuracy": 0.425,
+    "embedding_binary_accuracy": 0.6,
+    "embedding_silhouette": 0.03302838433499392,
+    "retrieval_map_at_5": 0.3736111111111111,
+    "retrieval_recall_at_5": 0.26999999999999996,
     "retrieval_per_query": {
       "person walking outside the safe walkway boundary": {
         "ap": 0.0,
         "recall": 0.0
       },
       "worker stepping into a restricted area without authorization": {
-        "ap": 0.0,
-        "recall": 0.0
+        "ap": 0.367,
+        "recall": 0.4
       },
       "electrical panel left open and unattended": {
-        "ap": 0.833,
+        "ap": 0.2,
         "recall": 0.2
       },
       "forklift carrying too many items stacked dangerously high": {
         "ap": 0.325,
-        "recall": 0.286
+        "recall": 0.4
       },
       "worker walking within the designated safe path": {
-        "ap": 0.0,
-        "recall": 0.0
+        "ap": 0.333,
+        "recall": 0.2
       },
       "authorized maintenance worker servicing equipment": {
-        "ap": 0.888,
-        "recall": 0.4
+        "ap": 0.5,
+        "recall": 0.2
       },
       "panel cover properly closed and secured": {
         "ap": 0.0,
@@ -549,20 +409,20 @@
       },
       "forklift safely transporting a normal load": {
         "ap": 1.0,
-        "recall": 0.833
+        "recall": 1.0
       },
       "safety violation on the factory floor": {
-        "ap": 0.325,
-        "recall": 0.087
+        "ap": 0.478,
+        "recall": 0.15
       },
       "proper safety protocol being followed": {
-        "ap": 0.888,
-        "recall": 0.148
+        "ap": 0.533,
+        "recall": 0.15
       }
     },
-    "generation_accuracy": 0.2,
-    "generation_binary_accuracy": 0.3,
-    "generation_format_compliance": 0.4,
-    "generation_hallucination_rate": 0.6
+    "generation_accuracy": 0.125,
+    "generation_binary_accuracy": 0.15,
+    "generation_format_compliance": 0.3,
+    "generation_hallucination_rate": 0.7
   }
 }

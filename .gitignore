@@ -1,6 +1,35 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
 .env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project state (API keys / run state)
 eval_state.json
+
+# FiftyOne
 .fiftyone/
+
+# Session notes (internal)
+SESSION_NOTES*.md
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Worker safety kit venv
+worker-safety-kit/venv/
+
+# OS
+.DS_Store

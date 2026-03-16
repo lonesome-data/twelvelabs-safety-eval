@@ -4,6 +4,12 @@ Twelve Labs API Evaluation Harness
 Tests Marengo 3.0 (embeddings) and Pegasus 1.2 (generation) on the
 Voxel51/Safe_and_Unsafe_Behaviours dataset (691 videos, 8 classes).
 
+Uses two separate indexes (Marengo-only and Pegasus-only) to maximize
+video capacity within the free-tier index usage limits:
+  - 13 min total indexed duration per 10-hour window
+  - 6 min max indexed duration per index per 10-hour window
+  - 50 videos max per index
+
 Usage:
     1. export TWELVE_LABS_API_KEY=your_key
     2. pip install -r requirements.txt
@@ -16,6 +22,8 @@ import argparse
 import json
 import logging
 import os
+import re
+import subprocess
 import time
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -59,8 +67,6 @@ SAFE_LABELS = {"Safe Walkway", "Authorized Intervention", "Closed Panel Cover", 
 UNSAFE_LABELS = set(LABELS) - SAFE_LABELS
 
 # Text queries mapped to expected ground-truth labels for retrieval eval.
-# These are written as a human would naturally search — the whole point is
-# to test whether Marengo understands the *semantics*, not just keywords.
 RETRIEVAL_QUERIES: dict[str, list[str]] = {
     # Unsafe queries
     "person walking outside the safe walkway boundary":
@@ -91,9 +97,17 @@ RETRIEVAL_QUERIES: dict[str, list[str]] = {
 # Config
 # ---------------------------------------------------------------------------
 API_KEY = os.environ["TWELVE_LABS_API_KEY"]
-INDEX_NAME = "safety-eval-index"
+MARENGO_INDEX_NAME = "safety-eval-marengo"
+PEGASUS_INDEX_NAME = "safety-eval-pegasus"
 MIN_DURATION = 4.0
 STATE_FILE = Path("eval_state.json")
+
+# Duration budget per index (seconds). The free tier allows 6 min per index
+# per 10-hour window. We use 5.5 min as a safety margin.
+MAX_DURATION_PER_INDEX = 5.5 * 60  # 330 seconds
+
+# Max videos per index (free tier allows 100, we cap at 50 to stay safe)
+MAX_VIDEOS_PER_INDEX = 50
 
 
 @dataclass
@@ -101,7 +115,9 @@ class VideoSample:
     filepath: str
     label: str
     sample_id: str
-    video_id: str | None = None
+    duration: float = 0.0
+    marengo_video_id: str | None = None
+    pegasus_video_id: str | None = None
     embedding: list[float] | None = None
     pegasus_label: str | None = None
 
@@ -161,8 +177,21 @@ D. PER-CLASS BREAKDOWN
 # Dataset loading
 # ---------------------------------------------------------------------------
 
+def get_video_duration(filepath: str) -> float:
+    """Get video duration in seconds using ffprobe."""
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", filepath],
+            capture_output=True, text=True, timeout=10,
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return 0.0
+
+
 def load_fiftyone_dataset(split: str, samples_per_label: int) -> list[VideoSample]:
-    """Download from HuggingFace and return a stratified sample."""
+    """Download from HuggingFace and return a stratified sample, sorted by duration."""
     if fo.dataset_exists(DATASET_NAME):
         dataset = fo.load_dataset(DATASET_NAME)
         log.info(f"Loaded existing FiftyOne dataset '{DATASET_NAME}' ({len(dataset)} samples)")
@@ -188,21 +217,34 @@ def load_fiftyone_dataset(split: str, samples_per_label: int) -> list[VideoSampl
 
     log.info(f"After filtering (split={split}, dur>={MIN_DURATION}s): {len(view)} videos")
 
-    # Stratified sampling
+    # Stratified sampling — sort by duration within each label to prefer shorter videos
     samples = []
     for label in sorted(view.distinct("ground_truth.label")):
         label_view = view.match(F("ground_truth.label") == label)
+        # Sort by duration ascending to pick shortest videos first
+        label_view = label_view.sort_by("metadata.duration")
         n = min(samples_per_label, len(label_view))
-        subset = label_view.take(n, seed=42)
-        for s in subset:
+        count = 0
+        for s in label_view:
+            if count >= n:
+                break
+            dur = s.metadata.duration if s.metadata and s.metadata.duration else 0.0
             samples.append(VideoSample(
                 filepath=s.filepath,
                 label=s.ground_truth.label,
                 sample_id=str(s.id),
+                duration=dur,
             ))
-        log.info(f"  {label}: {n} videos sampled (of {len(label_view)} available)")
+            count += 1
+        log.info(f"  {label}: {count} videos sampled (of {len(label_view)} available)")
 
-    log.info(f"Total evaluation set: {len(samples)} videos")
+    # Sort all samples by duration ascending for optimal budget usage
+    samples.sort(key=lambda s: s.duration)
+
+    total_dur = sum(s.duration for s in samples)
+    log.info(f"Total evaluation set: {len(samples)} videos, {total_dur:.1f}s total duration")
+    log.info(f"Duration budget per index: {MAX_DURATION_PER_INDEX:.0f}s")
+
     return samples
 
 
@@ -216,7 +258,9 @@ def save_state(samples: list[VideoSample]):
             "filepath": s.filepath,
             "label": s.label,
             "sample_id": s.sample_id,
-            "video_id": s.video_id,
+            "duration": s.duration,
+            "marengo_video_id": s.marengo_video_id,
+            "pegasus_video_id": s.pegasus_video_id,
             "pegasus_label": s.pegasus_label,
         }
         for s in samples
@@ -232,11 +276,15 @@ def restore_state(samples: list[VideoSample]) -> list[VideoSample]:
     for s in samples:
         if s.filepath in saved:
             prev = saved[s.filepath]
-            if prev.get("video_id"):
-                s.video_id = prev["video_id"]
+            if prev.get("marengo_video_id"):
+                s.marengo_video_id = prev["marengo_video_id"]
                 restored += 1
+            if prev.get("pegasus_video_id"):
+                s.pegasus_video_id = prev["pegasus_video_id"]
             if prev.get("pegasus_label"):
                 s.pegasus_label = prev["pegasus_label"]
+            if prev.get("duration"):
+                s.duration = prev["duration"]
     if restored:
         log.info(f"Restored state for {restored} previously-indexed videos")
     return samples
@@ -246,34 +294,33 @@ def restore_state(samples: list[VideoSample]) -> list[VideoSample]:
 # Twelve Labs helpers
 # ---------------------------------------------------------------------------
 
-def get_or_create_index(client: TwelveLabs) -> str:
+def get_or_create_index(client: TwelveLabs, index_name: str, model_name: str) -> str:
     for idx in client.indexes.list():
-        if idx.index_name == INDEX_NAME:
-            log.info(f"Reusing existing index {idx.id}")
+        if idx.index_name == index_name:
+            log.info(f"Reusing existing index '{index_name}' ({idx.id})")
             return idx.id
 
     from twelvelabs.indexes.types import IndexesCreateRequestModelsItem
 
     idx = client.indexes.create(
-        index_name=INDEX_NAME,
+        index_name=index_name,
         models=[
             IndexesCreateRequestModelsItem(
-                model_name="marengo3.0",
-                model_options=["visual", "audio"],
-            ),
-            IndexesCreateRequestModelsItem(
-                model_name="pegasus1.2",
+                model_name=model_name,
                 model_options=["visual", "audio"],
             ),
         ],
     )
-    log.info(f"Created index {idx.id}")
+    log.info(f"Created index '{index_name}' ({idx.id}) with model {model_name}")
     return idx.id
 
 
 def index_video(client: TwelveLabs, index_id: str, sample: VideoSample) -> str:
     with open(sample.filepath, "rb") as f:
-        task = client.tasks.create(
+        task = _rate_limited_call(
+            client.tasks.create,
+            _interval=10.0,
+            _max_retries=8,
             index_id=index_id,
             video_file=f.read(),
             user_metadata=json.dumps({
@@ -290,7 +337,9 @@ def index_video(client: TwelveLabs, index_id: str, sample: VideoSample) -> str:
 
 
 def fetch_embedding(client: TwelveLabs, index_id: str, video_id: str) -> list[float]:
-    info = client.indexes.videos.retrieve(
+    info = _rate_limited_call(
+        client.indexes.videos.retrieve,
+        _interval=10.0,
         index_id=index_id,
         video_id=video_id,
         embedding_option=["visual"],
@@ -323,9 +372,12 @@ Return ONLY the exact label name. No punctuation, no explanation, no extra words
 _last_call_time = 0.0
 
 
+_consecutive_429s = 0
+
+
 def _rate_limited_call(fn, *args, _max_retries=5, _interval=10.0, **kwargs):
-    """Proactively throttle and retry on 429."""
-    global _last_call_time
+    """Proactively throttle and retry on 429 with escalating backoff."""
+    global _last_call_time, _consecutive_429s
     elapsed = time.time() - _last_call_time
     if elapsed < _interval:
         time.sleep(_interval - elapsed)
@@ -333,15 +385,36 @@ def _rate_limited_call(fn, *args, _max_retries=5, _interval=10.0, **kwargs):
     for attempt in range(_max_retries):
         try:
             _last_call_time = time.time()
-            return fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
+            _consecutive_429s = 0  # Reset on success
+            return result
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "too_many_requests" in err_str:
-                # Parse retry-after header (small number of seconds, not a unix timestamp)
-                import re
+                _consecutive_429s += 1
+                # Parse retry-after header (seconds until quota resets)
                 match = re.search(r"'retry-after':\s*'(\d+)'", err_str)
                 retry_val = int(match.group(1)) if match else None
-                wait = (retry_val + 3) if retry_val and retry_val < 300 else 65
+                # Check for daily request quota exhaustion
+                remaining_match = re.search(r"'x-ratelimit-request-remaining':\s*'(\d+)'", err_str)
+                remaining = int(remaining_match.group(1)) if remaining_match else None
+                if remaining is not None and remaining == 0 and retry_val and retry_val > 300:
+                    # Daily quota exhausted — no point retrying
+                    from datetime import datetime, timezone
+                    reset_time = datetime.fromtimestamp(time.time() + retry_val, tz=timezone.utc)
+                    log.error(f"  Daily request quota exhausted (0 remaining). "
+                              f"Resets at {reset_time.isoformat()}. Skipping remaining indexing.")
+                    raise RuntimeError(
+                        f"Daily request quota exhausted. Retry after {reset_time.isoformat()}"
+                    )
+                elif retry_val and retry_val < 300:
+                    wait = retry_val + 3
+                elif _consecutive_429s >= 3:
+                    wait = 600
+                    log.warning(f"  Persistent 429s detected ({_consecutive_429s} consecutive). "
+                                f"Cooling down {wait}s...")
+                else:
+                    wait = 65
                 log.info(f"  Rate limited, waiting {wait}s (attempt {attempt+1}/{_max_retries})")
                 time.sleep(wait)
                 _last_call_time = time.time()
@@ -396,7 +469,7 @@ def bench_embedding_quality(samples: list[VideoSample]) -> dict:
 
 
 def bench_retrieval(client: TwelveLabs, index_id: str, samples: list[VideoSample]) -> dict:
-    video_id_to_label = {s.video_id: s.label for s in samples}
+    video_id_to_label = {s.marengo_video_id: s.label for s in samples}
     aps, recalls = [], []
     per_query = {}
 
@@ -481,10 +554,14 @@ def bench_generation(samples: list[VideoSample]) -> dict:
 
 def parse_args():
     p = argparse.ArgumentParser(description="Twelve Labs safety eval harness")
-    p.add_argument("--samples-per-label", type=int, default=10,
-                    help="Videos to sample per label (default 10 = 80 total)")
+    p.add_argument("--samples-per-label", type=int, default=5,
+                    help="Videos to sample per label (default 5 = 40 total)")
     p.add_argument("--split", choices=["train", "test", "both"], default="test",
                     help="Dataset split to evaluate on (default: test)")
+    p.add_argument("--fresh", action="store_true",
+                    help="Ignore saved state and start from scratch")
+    p.add_argument("--skip-indexing", action="store_true",
+                    help="Skip indexing, run benchmarks on already-indexed videos")
     return p.parse_args()
 
 
@@ -494,52 +571,113 @@ def main():
 
     # --- Load dataset ---
     samples = load_fiftyone_dataset(args.split, args.samples_per_label)
-    samples = restore_state(samples)
+    if not args.fresh:
+        samples = restore_state(samples)
 
     if not samples:
         raise SystemExit("No videos matched filters.")
 
-    index_id = get_or_create_index(client)
+    # --- Create separate indexes for each model ---
+    marengo_index_id = get_or_create_index(client, MARENGO_INDEX_NAME, "marengo3.0")
+    pegasus_index_id = get_or_create_index(client, PEGASUS_INDEX_NAME, "pegasus1.2")
 
-    # --- Step 1: Index ---
-    log.info("=== Step 1: Indexing videos ===")
-    for i, s in enumerate(samples):
-        if s.video_id:
-            continue
-        try:
-            s.video_id = index_video(client, index_id, s)
-        except Exception as e:
-            log.error(f"Failed to index {s.filepath}: {e}")
-        if (i + 1) % 5 == 0:
-            save_state(samples)
-    save_state(samples)
+    if not args.skip_indexing:
+        # --- Step 1a: Index into Marengo index (duration-aware) ---
+        log.info("=== Step 1a: Indexing videos into Marengo index ===")
+        marengo_duration_used = sum(s.duration for s in samples if s.marengo_video_id)
+        log.info(f"  Duration already indexed (Marengo): {marengo_duration_used:.1f}s / {MAX_DURATION_PER_INDEX:.0f}s")
+        marengo_skipped = 0
+        for i, s in enumerate(samples):
+            if s.marengo_video_id:
+                continue
+            if marengo_duration_used + s.duration > MAX_DURATION_PER_INDEX:
+                marengo_skipped += 1
+                log.warning(f"  SKIP {Path(s.filepath).name} ({s.duration:.1f}s) — would exceed Marengo duration budget")
+                continue
+            n_indexed = sum(1 for x in samples if x.marengo_video_id)
+            if n_indexed >= MAX_VIDEOS_PER_INDEX:
+                log.warning(f"  SKIP — reached {MAX_VIDEOS_PER_INDEX} video limit for Marengo index")
+                break
+            try:
+                s.marengo_video_id = index_video(client, marengo_index_id, s)
+                marengo_duration_used += s.duration
+                log.info(f"  Marengo duration used: {marengo_duration_used:.1f}s / {MAX_DURATION_PER_INDEX:.0f}s")
+            except Exception as e:
+                log.error(f"Failed to index {s.filepath} (Marengo): {e}")
+            if (i + 1) % 5 == 0:
+                save_state(samples)
+        save_state(samples)
 
-    indexed = [s for s in samples if s.video_id]
-    log.info(f"Indexed: {len(indexed)}/{len(samples)}")
+        marengo_indexed = [s for s in samples if s.marengo_video_id]
+        log.info(f"Marengo indexed: {len(marengo_indexed)}/{len(samples)} "
+                 f"({marengo_duration_used:.1f}s used, {marengo_skipped} skipped for budget)")
 
-    # --- Step 2: Embeddings ---
+        # --- Step 1b: Index into Pegasus index (duration-aware) ---
+        log.info("=== Step 1b: Indexing videos into Pegasus index ===")
+        pegasus_duration_used = sum(s.duration for s in samples if s.pegasus_video_id)
+        log.info(f"  Duration already indexed (Pegasus): {pegasus_duration_used:.1f}s / {MAX_DURATION_PER_INDEX:.0f}s")
+        pegasus_skipped = 0
+        for i, s in enumerate(samples):
+            if s.pegasus_video_id:
+                continue
+            if pegasus_duration_used + s.duration > MAX_DURATION_PER_INDEX:
+                pegasus_skipped += 1
+                log.warning(f"  SKIP {Path(s.filepath).name} ({s.duration:.1f}s) — would exceed Pegasus duration budget")
+                continue
+            n_indexed = sum(1 for x in samples if x.pegasus_video_id)
+            if n_indexed >= MAX_VIDEOS_PER_INDEX:
+                log.warning(f"  SKIP — reached {MAX_VIDEOS_PER_INDEX} video limit for Pegasus index")
+                break
+            try:
+                s.pegasus_video_id = index_video(client, pegasus_index_id, s)
+                pegasus_duration_used += s.duration
+                log.info(f"  Pegasus duration used: {pegasus_duration_used:.1f}s / {MAX_DURATION_PER_INDEX:.0f}s")
+            except Exception as e:
+                log.error(f"Failed to index {s.filepath} (Pegasus): {e}")
+            if (i + 1) % 5 == 0:
+                save_state(samples)
+        save_state(samples)
+
+        pegasus_indexed = [s for s in samples if s.pegasus_video_id]
+        log.info(f"Pegasus indexed: {len(pegasus_indexed)}/{len(samples)} "
+                 f"({pegasus_duration_used:.1f}s used, {pegasus_skipped} skipped for budget)")
+    else:
+        log.info("=== Skipping indexing (--skip-indexing) ===")
+        marengo_indexed = [s for s in samples if s.marengo_video_id]
+        pegasus_indexed = [s for s in samples if s.pegasus_video_id]
+
+    marengo_duration_used = sum(s.duration for s in samples if s.marengo_video_id)
+    pegasus_duration_used = sum(s.duration for s in samples if s.pegasus_video_id)
+    marengo_indexed = [s for s in samples if s.marengo_video_id]
+    pegasus_indexed = [s for s in samples if s.pegasus_video_id]
+
+    total_duration_used = marengo_duration_used + pegasus_duration_used
+    log.info(f"Total index usage: {total_duration_used:.1f}s / {13 * 60}s (13 min limit)")
+
+    # --- Step 2: Embeddings (from Marengo index) ---
     log.info("=== Step 2: Fetching Marengo 3.0 embeddings ===")
-    for s in indexed:
+    for s in marengo_indexed:
         if s.embedding:
             continue
         try:
-            s.embedding = fetch_embedding(client, index_id, s.video_id)
+            s.embedding = fetch_embedding(client, marengo_index_id, s.marengo_video_id)
         except Exception as e:
-            log.error(f"Embedding fetch failed for {s.video_id}: {e}")
+            log.error(f"Embedding fetch failed for {s.marengo_video_id}: {e}")
 
-    with_emb = [s for s in indexed if s.embedding]
-    log.info(f"Embeddings: {len(with_emb)}/{len(indexed)} (dim={len(with_emb[0].embedding) if with_emb else '?'})")
+    with_emb = [s for s in marengo_indexed if s.embedding]
+    log.info(f"Embeddings: {len(with_emb)}/{len(marengo_indexed)} "
+             f"(dim={len(with_emb[0].embedding) if with_emb else '?'})")
 
-    # --- Step 3: Pegasus labeling ---
+    # --- Step 3: Pegasus labeling (from Pegasus index) ---
     log.info("=== Step 3: Pegasus 1.2 classification ===")
-    for s in indexed:
+    for s in pegasus_indexed:
         if s.pegasus_label:
             continue
         try:
-            s.pegasus_label = generate_label(client, s.video_id)
+            s.pegasus_label = generate_label(client, s.pegasus_video_id)
             log.info(f"  GT={s.label:40s} → Pegasus='{s.pegasus_label}'")
         except Exception as e:
-            log.error(f"Generation failed for {s.video_id}: {e}")
+            log.error(f"Generation failed for {s.pegasus_video_id}: {e}")
             s.pegasus_label = "ERROR"
     save_state(samples)
 
@@ -555,12 +693,12 @@ def main():
 
     if RETRIEVAL_QUERIES:
         log.info("=== Benchmark B: Retrieval quality ===")
-        ret = bench_retrieval(client, index_id, indexed)
+        ret = bench_retrieval(client, marengo_index_id, marengo_indexed)
         results.retrieval_map_at_5 = ret["map_at_5"]
         results.retrieval_recall_at_5 = ret["recall_at_5"]
         results.retrieval_per_query = ret["per_query"]
 
-    labeled = [s for s in indexed if s.pegasus_label and s.pegasus_label != "ERROR"]
+    labeled = [s for s in pegasus_indexed if s.pegasus_label and s.pegasus_label != "ERROR"]
     if labeled:
         log.info("=== Benchmark C: Generation quality ===")
         gen = bench_generation(labeled)
@@ -579,14 +717,20 @@ def main():
             "split": args.split,
             "samples_per_label": args.samples_per_label,
             "total_videos": len(samples),
-            "indexed": len(indexed),
+            "marengo_indexed": len(marengo_indexed),
+            "pegasus_indexed": len(pegasus_indexed),
+            "marengo_duration_s": round(marengo_duration_used, 1),
+            "pegasus_duration_s": round(pegasus_duration_used, 1),
+            "total_index_usage_s": round(total_duration_used, 1),
             "dataset": HF_SLUG,
         },
         "samples": [
             {
                 "filepath": s.filepath,
                 "ground_truth": s.label,
-                "video_id": s.video_id,
+                "duration": s.duration,
+                "marengo_video_id": s.marengo_video_id,
+                "pegasus_video_id": s.pegasus_video_id,
                 "pegasus_label": s.pegasus_label,
                 "embedding_dim": len(s.embedding) if s.embedding else 0,
             }

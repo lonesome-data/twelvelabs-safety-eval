@@ -1,204 +1,123 @@
 {
-  "experiment": {
-    "title": "Twelve Labs Marengo 3.0 & Pegasus 1.2 Evaluation on Worker Safety Video Classification",
-    "date": "2026-03-10",
-    "objective": "Independently benchmark Twelve Labs video foundation models on an industrial safety dataset to assess fitness for production safety monitoring",
-    "authors": ["Sean Forester"]
-  },
-
+  "title": "Twelve Labs Marengo 3.0 / Pegasus 1.2 Evaluation on Worker Safety Classification",
+  "author": "Sean Forester",
+  "date": "2026-03-11",
+  "run": 2,
+  "status": "complete",
   "dataset": {
-    "source": "Voxel51/Safe_and_Unsafe_Behaviours",
-    "url": "https://huggingface.co/datasets/Voxel51/Safe_and_Unsafe_Behaviours",
+    "name": "Voxel51/Safe_and_Unsafe_Behaviours",
+    "source": "HuggingFace",
     "license": "CC-BY-4.0",
-    "original_paper": "https://www.sciencedirect.com/science/article/pii/S235234092400756X",
+    "paper_doi": "10.1016/j.dib.2024.110791",
     "total_videos": 691,
-    "splits": {"train": 566, "test": 125},
-    "format": "MP4, 1920x1080, 24fps, 1-20s duration",
-    "labels": {
-      "safe": ["Safe Walkway", "Authorized Intervention", "Closed Panel Cover", "Safe Carrying"],
-      "unsafe": ["Safe Walkway Violation", "Unauthorized Intervention", "Opened Panel Cover", "Carrying Overload with Forklift"]
-    },
-    "evaluation_subset": {
-      "split_used": "test",
-      "target_per_label": 10,
-      "min_duration_filter": 4.0,
-      "total_after_filter": 116,
-      "sampled": 72,
-      "successfully_indexed": 50,
-      "successfully_labeled_by_pegasus": 30,
-      "note": "22 videos failed to index and 20 failed Pegasus labeling due to API rate limits (8 req/min on free tier)"
-    }
-  },
-
-  "models_under_test": {
-    "marengo_3.0": {
-      "type": "Multimodal embedding model",
-      "version": "marengo3.0",
-      "modalities_used": ["visual", "audio"],
-      "embedding_dim": 512,
-      "max_video_duration": "4 hours",
-      "min_video_duration": "4 seconds",
-      "api_endpoint": "https://api.twelvelabs.io/v1.3"
-    },
-    "pegasus_1.2": {
-      "type": "Video language model (generative)",
-      "version": "pegasus1.2",
-      "modalities_used": ["visual", "audio"],
-      "temperature": 0.1,
-      "api_endpoint": "https://api.twelvelabs.io/v1.3/analyze"
-    }
-  },
-
-  "methodology": {
-    "pipeline": [
-      "1. Download dataset from HuggingFace via FiftyOne (load_from_hub)",
-      "2. Filter test split for videos >= 4s duration",
-      "3. Stratified sample up to 10 videos per label (seed=42)",
-      "4. Create TwelveLabs index with both marengo3.0 and pegasus1.2",
-      "5. Upload and index each video via tasks.create + tasks.wait_for_done",
-      "6. Retrieve 512-dim Marengo embeddings via indexes.videos.retrieve (multi-segment averaged)",
-      "7. Classify each video via Pegasus analyze endpoint with constrained prompt",
-      "8. Run text-to-video search queries via search.query endpoint",
-      "9. Compute metrics: kNN-CV, silhouette, mAP@5, recall@5, accuracy, format compliance"
-    ],
-    "embedding_evaluation": {
-      "method": "k-Nearest Neighbors with cross-validation",
-      "k": 5,
-      "distance_metric": "cosine",
-      "cv_strategy": "StratifiedKFold (n_splits=min(5, min_class_count))",
-      "also_tested": "binary safe/unsafe classification"
-    },
-    "retrieval_evaluation": {
-      "method": "Text-to-video search via Marengo",
-      "queries": 10,
-      "metrics": ["AP@5", "Recall@5"],
-      "query_types": ["per-class natural language queries (8)", "cross-cutting safe/unsafe queries (2)"]
-    },
-    "generation_evaluation": {
-      "method": "Zero-shot video classification via Pegasus",
-      "prompt_strategy": "Constrained label set with explicit safe/unsafe grouping",
-      "prompt": "You are a worker-safety video classifier. Classify this video into exactly one label.\n\nUNSAFE:\n- Safe Walkway Violation\n- Unauthorized Intervention\n- Opened Panel Cover\n- Carrying Overload with Forklift\n\nSAFE:\n- Safe Walkway\n- Authorized Intervention\n- Closed Panel Cover\n- Safe Carrying\n\nReturn ONLY the exact label name. No punctuation, no explanation, no extra words.",
-      "temperature": 0.1,
-      "metrics": ["8-class exact match accuracy", "binary accuracy", "format compliance rate", "hallucination rate"]
-    },
-    "rate_limiting": {
-      "api_limit": "8 requests/minute (free tier)",
-      "mitigation": "Proactive 10s interval between calls + retry with parsed retry-after header",
-      "impact": "22 videos failed indexing, 20 failed Pegasus labeling due to exhausted retries"
-    }
-  },
-
-  "results": {
-    "benchmark_a_embedding_quality": {
-      "knn_8class_accuracy": 0.499,
-      "knn_binary_accuracy": 0.640,
-      "silhouette_score": 0.024,
-      "interpretation": "Embeddings carry weak class signal (random baseline=0.125) but clusters heavily overlap (silhouette near 0). Binary safe/unsafe barely better than chance."
-    },
-    "benchmark_b_retrieval_quality": {
-      "mean_ap_at_5": 0.426,
-      "mean_recall_at_5": 0.195,
-      "per_query": {
-        "person walking outside the safe walkway boundary":              {"expected": ["Safe Walkway Violation"],          "ap": 0.00, "recall": 0.00},
-        "worker stepping into restricted area without authorization":    {"expected": ["Unauthorized Intervention"],       "ap": 0.00, "recall": 0.00},
-        "electrical panel left open and unattended":                     {"expected": ["Opened Panel Cover"],              "ap": 0.83, "recall": 0.20},
-        "forklift carrying too many items stacked dangerously high":     {"expected": ["Carrying Overload with Forklift"], "ap": 0.33, "recall": 0.29},
-        "worker walking within the designated safe path":                {"expected": ["Safe Walkway"],                    "ap": 0.00, "recall": 0.00},
-        "authorized maintenance worker servicing equipment":             {"expected": ["Authorized Intervention"],         "ap": 0.89, "recall": 0.40},
-        "panel cover properly closed and secured":                       {"expected": ["Closed Panel Cover"],              "ap": 0.00, "recall": 0.00},
-        "forklift safely transporting a normal load":                    {"expected": ["Safe Carrying"],                   "ap": 1.00, "recall": 0.83},
-        "safety violation on the factory floor":                         {"expected": ["all unsafe labels"],               "ap": 0.33, "recall": 0.09},
-        "proper safety protocol being followed":                         {"expected": ["all safe labels"],                 "ap": 0.89, "recall": 0.15}
-      },
-      "interpretation": "Strong at object-level retrieval (forklift, panel, equipment). Fails completely at state discrimination (open vs closed, inside vs outside walkway, authorized vs unauthorized)."
-    },
-    "benchmark_c_generation_quality": {
-      "n_evaluated": 30,
-      "n_excluded_error": 20,
-      "accuracy_8class": 0.200,
-      "accuracy_binary": 0.300,
-      "format_compliance": 0.400,
-      "hallucination_rate": 0.600,
-      "pegasus_output_distribution": {
-        "Unsafe": 17,
-        "Safe Walkway": 8,
-        "Safe Carrying": 4,
-        "SAFE": 1
-      },
-      "per_class_results": {
-        "Authorized Intervention":         {"n": 10, "labeled": 0,  "correct": 0, "note": "All 10 failed due to rate limits"},
-        "Carrying Overload with Forklift": {"n": 7,  "labeled": 0,  "correct": 0, "note": "All 7 failed due to rate limits"},
-        "Closed Panel Cover":              {"n": 8,  "labeled": 5,  "correct": 0, "predictions": {"Safe Walkway": 3, "Unsafe": 2}},
-        "Opened Panel Cover":              {"n": 10, "labeled": 10, "correct": 0, "predictions": {"Unsafe": 9, "Safe Walkway": 1}},
-        "Safe Carrying":                   {"n": 6,  "labeled": 6,  "correct": 4, "predictions": {"Safe Carrying": 4, "Unsafe": 2}},
-        "Safe Walkway":                    {"n": 3,  "labeled": 3,  "correct": 2, "predictions": {"Safe Walkway": 2, "Unsafe": 1}},
-        "Safe Walkway Violation":          {"n": 3,  "labeled": 3,  "correct": 0, "predictions": {"Safe Walkway": 2, "Unsafe": 1}},
-        "Unauthorized Intervention":       {"n": 3,  "labeled": 3,  "correct": 0, "predictions": {"Unsafe": 2, "SAFE": 1}}
-      },
-      "critical_failure_modes": [
-        "Pegasus returned 'Unsafe' (not a valid label) 57% of the time — defaults to binary judgment instead of 8-class classification",
-        "Safe Walkway Violation classified as 'Safe Walkway' in 2/3 cases — misses the violation entirely",
-        "Carrying Overload with Forklift classified as 'Safe Carrying' in prior run — calls dangerous behavior safe",
-        "Closed Panel Cover (safe) classified as 'Unsafe' — false alarm on correct behavior",
-        "60% hallucination rate despite explicit prompt constraints and temperature=0.1"
-      ]
-    }
-  },
-
-  "analysis": {
-    "marengo_strengths": [
-      "Object-level retrieval works well (forklift AP=1.0, equipment AP=0.89)",
-      "512-dim embeddings are compact and practical for downstream ML",
-      "Multi-segment temporal encoding provides video-level representations",
-      "37-language support and 4-hour video capacity are production-grade specs"
-    ],
-    "marengo_weaknesses": [
-      "Cannot discriminate states: open vs closed, inside vs outside boundary, authorized vs unauthorized",
-      "Walkway queries returned AP=0.0 — no understanding of spatial boundary compliance",
-      "Panel cover state (open vs closed) completely indistinguishable",
-      "Silhouette score of 0.024 means safety classes are not meaningfully separated in embedding space",
-      "Benchmarks published by Twelve Labs are sports-focused; no published safety/industrial benchmarks"
-    ],
-    "pegasus_strengths": [
-      "Can identify visually distinct safe behaviors (Safe Carrying: 67% recall)",
-      "Low latency per-call once indexed",
-      "Cost-efficient re-querying via stored embeddings"
-    ],
-    "pegasus_weaknesses": [
-      "60% hallucination rate on constrained classification — returns invalid labels",
-      "Defaults to 'Unsafe' as a catch-all (57% of responses) instead of specific labels",
-      "Cannot distinguish violation from compliance on the same activity (walkway violation → 'Safe Walkway')",
-      "No structured output / constrained decoding mode — freeform text output only",
-      "Ignores explicit prompt instructions ('Return ONLY the exact label name')"
-    ],
-    "production_concerns": [
-      "Rate limit of 8 req/min on free tier makes batch evaluation impractical — 42% of our samples failed",
-      "API-only deployment precludes edge/air-gapped industrial environments",
-      "The walkway violation misclassification (unsafe → safe) represents liability risk in real deployments",
-      "No fine-tuning available — cannot adapt models to domain-specific safety categories"
-    ]
-  },
-
-  "reproducibility": {
-    "harness": "eval_harness.py",
-    "requirements": "requirements.txt",
-    "python_version": "3.13",
-    "twelvelabs_sdk_version": "1.2.0",
+    "test_split": 125,
+    "eligible_after_filter": 116,
+    "evaluation_subset": 40,
+    "samples_per_label": 5,
     "random_seed": 42,
-    "commands": [
-      "python3 -m venv .venv",
-      "source .venv/bin/activate",
-      "pip install -r requirements.txt",
-      "pip install 'huggingface_hub>=0.20.0'",
-      "export TWELVE_LABS_API_KEY=<your_key>",
-      "python eval_harness.py --split test --samples-per-label 3   # quick sanity check (24 videos)",
-      "python eval_harness.py --split test --samples-per-label 10  # full run (72+ videos)"
-    ],
-    "notes": [
-      "First run downloads ~9.5GB dataset from HuggingFace",
-      "State is persisted to eval_state.json — interrupted runs resume without re-indexing",
-      "Free tier rate limits severely constrain batch runs; expect ~20% failure rate on large batches",
-      "Results may vary slightly due to Pegasus non-determinism even at temperature=0.1"
+    "min_duration_s": 4.0,
+    "selection_strategy": "shortest-first within each label"
+  },
+  "architecture": {
+    "strategy": "split-index",
+    "marengo_index": "safety-eval-marengo",
+    "pegasus_index": "safety-eval-pegasus",
+    "marengo_model": "marengo3.0",
+    "pegasus_model": "pegasus1.2",
+    "modalities": ["visual", "audio"],
+    "marengo_videos_indexed": 40,
+    "pegasus_videos_indexed": 40,
+    "marengo_duration_s": 257.9,
+    "pegasus_duration_s": 257.9,
+    "total_index_usage_s": 515.8,
+    "api_success_rate": 1.0
+  },
+  "api_limits": {
+    "indexing_requests_per_day": 50,
+    "search_requests_per_day": 50,
+    "analyze_requests_per_day": 50,
+    "embed_requests_per_day": 50,
+    "duration_limit_s": 3600,
+    "days_required_for_full_eval": 2
+  },
+  "results": {
+    "embedding_quality": {
+      "knn_8class_accuracy": 0.425,
+      "knn_binary_accuracy": 0.600,
+      "silhouette_score": 0.033,
+      "embedding_dim": 512,
+      "knn_k": 5,
+      "knn_metric": "cosine",
+      "cv_method": "stratified_kfold"
+    },
+    "retrieval_quality": {
+      "map_at_5": 0.374,
+      "recall_at_5": 0.270,
+      "num_queries": 10,
+      "per_query": {
+        "forklift safely transporting a normal load": {"ap": 1.000, "recall": 1.000},
+        "proper safety protocol being followed": {"ap": 0.533, "recall": 0.150},
+        "authorized maintenance worker servicing equipment": {"ap": 0.500, "recall": 0.200},
+        "safety violation on the factory floor": {"ap": 0.478, "recall": 0.150},
+        "worker stepping into a restricted area without authorization": {"ap": 0.367, "recall": 0.400},
+        "worker walking within the designated safe path": {"ap": 0.333, "recall": 0.200},
+        "forklift carrying too many items stacked dangerously high": {"ap": 0.325, "recall": 0.400},
+        "electrical panel left open and unattended": {"ap": 0.200, "recall": 0.200},
+        "person walking outside the safe walkway boundary": {"ap": 0.000, "recall": 0.000},
+        "panel cover properly closed and secured": {"ap": 0.000, "recall": 0.000}
+      },
+      "pattern": "Object-level retrieval succeeds; state discrimination fails"
+    },
+    "generation_quality": {
+      "accuracy_8class": 0.125,
+      "accuracy_binary": 0.150,
+      "format_compliance": 0.300,
+      "hallucination_rate": 0.700,
+      "total_classified": 40,
+      "total_correct": 5,
+      "temperature": 0.1,
+      "output_distribution": {
+        "Unsafe": 21,
+        "Safe Carrying": 8,
+        "Safe Walkway": 4,
+        "SAFE": 2,
+        "Other invalid": 5
+      },
+      "per_class": {
+        "Carrying Overload with Forklift": {"correct": 0, "total": 5, "dangerous": true, "note": "All misclassified as Safe Carrying"},
+        "Closed Panel Cover": {"correct": 0, "total": 5, "note": "Safe behavior flagged as Unsafe"},
+        "Opened Panel Cover": {"correct": 0, "total": 5, "note": "Outputs Unsafe — not a valid label"},
+        "Authorized Intervention": {"correct": 0, "total": 5, "note": "Safe behavior flagged as Unsafe"},
+        "Unauthorized Intervention": {"correct": 0, "total": 5, "note": "Cannot distinguish from authorized"},
+        "Safe Walkway": {"correct": 1, "total": 5, "note": "80% false alarm rate"},
+        "Safe Walkway Violation": {"correct": 0, "total": 5, "dangerous": true, "note": "2/5 classified as safe"},
+        "Safe Carrying": {"correct": 4, "total": 5, "note": "Best class — visually distinctive"}
+      }
+    }
+  },
+  "conclusions": {
+    "marengo_fitness": "Not fit as sole classifier. Useful for object retrieval and feature extraction in multi-stage pipelines.",
+    "pegasus_fitness": "Not fit for classification. 70% hallucination rate and dangerous misclassifications.",
+    "key_finding": "Both models recognize objects but cannot distinguish states (open/closed, inside/outside, authorized/unauthorized).",
+    "dangerous_failures": [
+      "Carrying Overload classified as Safe Carrying (4/5)",
+      "Safe Walkway Violation classified as Safe Walkway or SAFE (2/5)"
     ]
+  },
+  "confounds": [
+    "Camera-class correlation: Camera 9 = walkway+panel, Camera 14 = forklift",
+    "Duration-class correlation from shortest-first sampling",
+    "Single environment (1 factory, 2 cameras, 39 days)",
+    "API non-determinism at temperature=0.1",
+    "No negative controls or out-of-distribution testing",
+    "Small sample size (5 per class, no confidence intervals)"
+  ],
+  "reproducibility": {
+    "python_version": "3.13",
+    "sdk_version": "twelvelabs 1.2.0",
+    "random_seed": 42,
+    "state_file": "eval_state.json",
+    "results_file": "eval_results.json",
+    "code_file": "eval_harness.py"
   }
 }
